@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MassHealth SNF Placement Intelligence & Admissions CRM</title>
+  <!-- D1 Worker URL — set this after running: cd worker && npx wrangler deploy -->
+  <!-- <script>window.MASSHEALTH_WORKER_URL = 'https://masshealth-crm-api.YOUR-ACCOUNT.workers.dev';</script> -->
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter & JetBrains Mono -->
@@ -1887,6 +1889,54 @@ Every day my parent remains in your acute hospital bed costs your institution th
       UNRESPONSIVE_CONTACT: { label: "Bad Number / Unresponsive Admissions", badge: "bg-slate-100 text-slate-800 border-slate-300" }
     };
 
+    // ── D1 Persistence Layer ───────────────────────────────────────────────
+    // After deploying worker/, set this to your Worker URL:
+    //   cd worker && npx wrangler deploy
+    const WORKER_URL = (window.MASSHEALTH_WORKER_URL || '').replace(/\/$/, '');
+
+    let _d1SyncTimer = null;
+    function scheduleD1Sync() {
+      if (!WORKER_URL) return;
+      clearTimeout(_d1SyncTimer);
+      _d1SyncTimer = setTimeout(pushAllToD1, 1200);
+    }
+
+    async function d1Fetch(path, method = 'GET', body) {
+      if (!WORKER_URL) return null;
+      try {
+        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body !== undefined) opts.body = JSON.stringify(body);
+        const res = await fetch(WORKER_URL + path, opts);
+        if (!res.ok) throw new Error(`D1 ${method} ${path} → ${res.status}`);
+        return await res.json();
+      } catch (e) {
+        console.warn('[D1 sync]', e.message);
+        return null;
+      }
+    }
+
+    async function pushAllToD1() {
+      await d1Fetch('/api/state', 'POST', { facilities, patients, repatriation_progress: repatriationProgress });
+    }
+
+    async function loadFromD1() {
+      const state = await d1Fetch('/api/state');
+      if (!state) return false;
+      if (Array.isArray(state.facilities) && state.facilities.length > 0) {
+        facilities = state.facilities;
+        localStorage.setItem('masshealth_snf_data_v7', JSON.stringify(facilities));
+      }
+      if (Array.isArray(state.patients) && state.patients.length > 0) {
+        patients = state.patients;
+        localStorage.setItem('masshealth_crm_patients_v1', JSON.stringify(patients));
+      }
+      if (state.repatriation_progress && Object.keys(state.repatriation_progress).length > 0) {
+        repatriationProgress = state.repatriation_progress;
+        localStorage.setItem('masshealth_repatriation_progress', JSON.stringify(repatriationProgress));
+      }
+      return true;
+    }
+
     // State Initialization
     let patients = [];
     try {
@@ -1944,6 +1994,7 @@ Every day my parent remains in your acute hospital bed costs your institution th
       } catch (e) {
         console.warn('LocalStorage unavailable', e);
       }
+      scheduleD1Sync();
     }
 
     function getActivePatient() {
@@ -3696,6 +3747,20 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
       selectFacility(selectedFacilityId);
       renderFacilitiesList();
       initOnboarding();
+
+      // Hydrate from D1 after local render — updates UI if D1 has newer data
+      if (WORKER_URL) {
+        loadFromD1().then(loaded => {
+          if (loaded) {
+            activePatientId = patients[0]?.id || activePatientId;
+            selectedFacilityId = facilities[0]?.id || selectedFacilityId;
+            populatePatientUI();
+            updateMetrics();
+            selectFacility(selectedFacilityId);
+            renderFacilitiesList();
+          }
+        });
+      }
     });
   </script>
 

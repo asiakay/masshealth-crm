@@ -1,0 +1,8 @@
+name = "masshealth-crm-api"
+main = "index.js"
+compatibility_date = "2024-09-23"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "masshealth-crm-db"
+database_id = "fa1bf5f6-6321-4123-8a38-f23e5f649ad7"
