@@ -504,6 +504,56 @@
             </div>
           </div>
 
+          <!-- Decision Maker -->
+          <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-2.5 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-indigo-900 text-[11px] uppercase tracking-wide">Decision Maker</span>
+              <span class="text-[10px] text-indigo-500 italic">The person who can actually approve placement</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-indigo-800 mb-0.5">Name</label>
+                <input id="inputDmName" type="text" placeholder="e.g. Dr. Maria Santos" class="w-full p-1.5 bg-white border border-indigo-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-indigo-400 outline-none text-xs">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-indigo-800 mb-0.5">Role</label>
+                <select id="inputDmRole" class="w-full p-1.5 bg-white border border-indigo-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-indigo-400 outline-none text-xs">
+                  <option value="">— Select role —</option>
+                  <option value="DON">Director of Nursing (DON)</option>
+                  <option value="ADMISSIONS_DIRECTOR">Admissions Director</option>
+                  <option value="ADMINISTRATOR">Administrator / CEO</option>
+                  <option value="BOM">Business Office Manager (BOM)</option>
+                  <option value="SOCIAL_WORKER">Social Worker</option>
+                  <option value="CFO">CFO / Finance Director</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-indigo-800 mb-0.5">Direct Email</label>
+                <input id="inputDmEmail" type="email" placeholder="dm@facility.org" class="w-full p-1.5 bg-white border border-indigo-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-indigo-400 outline-none text-xs">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-indigo-800 mb-0.5">Direct Phone</label>
+                <input id="inputDmPhone" type="tel" placeholder="(617) 555-0100" class="w-full p-1.5 bg-white border border-indigo-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-indigo-400 outline-none text-xs">
+              </div>
+            </div>
+            <button id="openEmailComposeBtn" type="button" class="w-full py-1.5 px-3 bg-indigo-700 hover:bg-indigo-800 text-white font-bold rounded-lg text-[11px] flex items-center justify-center gap-1.5 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              Draft &amp; Send Email to Decision Maker
+            </button>
+          </div>
+
+          <!-- Email Outreach Log -->
+          <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+            <div class="flex justify-between items-center mb-1.5">
+              <span class="font-bold text-slate-800 text-[11px]">Email Outreach Log</span>
+              <span class="text-[10px] text-slate-400">Sent + outcomes</span>
+            </div>
+            <div id="emailOutreachLog" class="space-y-1.5 max-h-28 overflow-y-auto pr-1 text-[10px] text-slate-500 italic">
+              No emails logged yet.
+            </div>
+          </div>
+
           <!-- Placement Stage & Next Follow Up -->
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -554,6 +604,105 @@
 
     </div>
   </main>
+
+  <!-- Email Compose Modal -->
+  <div id="emailComposeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop-blur p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-5 py-3.5 bg-indigo-900 text-white flex justify-between items-center flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <div>
+            <h3 class="text-sm font-bold">Email Decision Maker</h3>
+            <p id="emailComposeSubtitle" class="text-[10px] text-indigo-300"></p>
+          </div>
+        </div>
+        <button id="closeEmailCompose" type="button" class="text-indigo-300 hover:text-white text-lg leading-none">✕</button>
+      </div>
+      <div class="p-5 space-y-3 overflow-y-auto text-xs flex-1">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-0.5">To (Email)</label>
+            <input id="emailTo" type="email" class="w-full p-1.5 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-indigo-400 outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-0.5">Follow-Up If No Reply</label>
+            <input id="emailFollowUpDate" type="date" class="w-full p-1.5 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-indigo-400 outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-0.5">Subject</label>
+          <input id="emailSubject" type="text" class="w-full p-1.5 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-indigo-400 outline-none">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-0.5">Body</label>
+          <textarea id="emailBody" rows="10" class="w-full p-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-indigo-400 outline-none resize-none font-mono text-[11px] leading-relaxed"></textarea>
+        </div>
+        <p class="text-[10px] text-slate-400">Review and edit the draft above before sending. Click "Open in Gmail" to send from your Gmail account.</p>
+      </div>
+      <div class="px-5 py-3 border-t border-slate-200 flex justify-between items-center flex-shrink-0 bg-slate-50">
+        <button id="closeEmailCompose2" type="button" class="text-xs text-slate-500 hover:text-slate-700">Cancel</button>
+        <div class="flex gap-2">
+          <a id="emailGmailLink" href="#" target="_blank" class="py-1.5 px-4 bg-white border border-indigo-300 text-indigo-700 font-semibold rounded-lg text-xs hover:bg-indigo-50 transition flex items-center gap-1.5">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            Open in Gmail
+          </a>
+          <button id="logEmailSentBtn" type="button" class="py-1.5 px-4 bg-indigo-700 hover:bg-indigo-800 text-white font-bold rounded-lg text-xs transition">
+            Log as Sent &amp; Record Outcome
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Outcome Modal -->
+  <div id="emailOutcomeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop-blur p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
+      <div class="px-5 py-3.5 bg-slate-800 text-white flex justify-between items-center">
+        <h3 class="text-sm font-bold">Log Email Outcome</h3>
+        <button id="closeOutcomeModal" type="button" class="text-slate-400 hover:text-white text-lg leading-none">✕</button>
+      </div>
+      <div class="p-5 space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Outcome Status</label>
+          <div class="grid grid-cols-2 gap-1.5">
+            <label class="flex items-center gap-1.5 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+              <input type="radio" name="outcomeStatus" value="INTERESTED" class="text-emerald-600"> <span class="font-medium text-emerald-700">Interested / Positive</span>
+            </label>
+            <label class="flex items-center gap-1.5 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+              <input type="radio" name="outcomeStatus" value="MORE_INFO" class="text-blue-600"> <span class="font-medium text-blue-700">Requested More Info</span>
+            </label>
+            <label class="flex items-center gap-1.5 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+              <input type="radio" name="outcomeStatus" value="NO_RESPONSE" checked class="text-slate-600"> <span class="font-medium text-slate-600">No Response Yet</span>
+            </label>
+            <label class="flex items-center gap-1.5 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+              <input type="radio" name="outcomeStatus" value="DECLINED" class="text-rose-600"> <span class="font-medium text-rose-700">Declined</span>
+            </label>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <div class="flex-1">
+            <label class="block font-semibold text-slate-700 mb-0.5">Response Received?</label>
+            <select id="outcomeResponseReceived" class="w-full p-1.5 border border-slate-300 rounded-lg text-slate-800 outline-none focus:ring-2 focus:ring-slate-400">
+              <option value="0">No response yet</option>
+              <option value="1">Yes — reply received</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label class="block font-semibold text-slate-700 mb-0.5">Response Date</label>
+            <input id="outcomeResponseDate" type="date" class="w-full p-1.5 border border-slate-300 rounded-lg text-slate-800 outline-none focus:ring-2 focus:ring-slate-400">
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-0.5">Follow-Up Date</label>
+          <input id="outcomeFollowUpDate" type="date" class="w-full p-1.5 border border-slate-300 rounded-lg text-slate-800 outline-none focus:ring-2 focus:ring-slate-400">
+        </div>
+      </div>
+      <div class="px-5 py-3 border-t border-slate-200 flex justify-end gap-2 bg-slate-50">
+        <button id="closeOutcomeModal2" type="button" class="text-xs text-slate-500 hover:text-slate-700">Skip</button>
+        <button id="saveOutcomeBtn" type="button" class="py-1.5 px-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-xs transition">Save Outcome</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 10-Point Packet Readiness Audit Modal -->
   <div id="packetAuditModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop-blur p-4">
@@ -2798,7 +2947,14 @@ Notary Public, Commonwealth of Massachusetts`;
       setInput('inputFollowUpDate', fac.follow_up_date);
       setInput('inputNotes', fac.notes);
 
+      // Decision maker
+      setInput('inputDmName',  fac.decision_maker_name  || '');
+      setInput('inputDmRole',  fac.decision_maker_role  || '');
+      setInput('inputDmEmail', fac.decision_maker_email || '');
+      setInput('inputDmPhone', fac.decision_maker_phone || '');
+
       renderCallLogs(fac);
+      renderEmailLog(fac);
     }
 
     function renderCallLogs(fac) {
@@ -2818,6 +2974,236 @@ Notary Public, Commonwealth of Massachusetts`;
       });
     }
 
+    function renderEmailLog(fac) {
+      const container = document.getElementById('emailOutreachLog');
+      if (!container) return;
+      const emails = fac?.email_outreach || [];
+      if (emails.length === 0) {
+        container.innerHTML = '<span class="text-slate-400 italic">No emails logged yet.</span>';
+        return;
+      }
+      const OUTCOME_COLORS = {
+        INTERESTED: 'text-emerald-700 font-semibold',
+        MORE_INFO:  'text-blue-700 font-semibold',
+        NO_RESPONSE:'text-slate-500',
+        DECLINED:   'text-rose-700 font-semibold',
+      };
+      container.innerHTML = emails.map(e => {
+        const outcomeLabel = { INTERESTED:'Interested', MORE_INFO:'More Info Requested', NO_RESPONSE:'No Response', DECLINED:'Declined' }[e.outcome_status] || e.outcome_status;
+        const colorClass = OUTCOME_COLORS[e.outcome_status] || 'text-slate-500';
+        return `
+          <div class="bg-white p-1.5 rounded border border-slate-200 space-y-0.5" data-email-id="${e.id}">
+            <div class="flex justify-between items-start">
+              <span class="font-mono text-slate-400">${e.sent_at ? e.sent_at.slice(0,16).replace('T',' ') : '—'}</span>
+              <span class="${colorClass} text-[10px]">${outcomeLabel}</span>
+            </div>
+            <div class="text-slate-700 font-sans"><span class="font-semibold">To:</span> ${e.to || e.decision_maker_name || '—'} &bull; <span class="font-semibold">Subj:</span> ${e.subject || '—'}</div>
+            ${e.outcome_status === 'NO_RESPONSE' ? `<button class="log-outcome-btn text-indigo-600 underline hover:text-indigo-800 text-[10px]" data-email-id="${e.id}">Log outcome →</button>` : ''}
+          </div>`;
+      }).join('');
+
+      container.querySelectorAll('.log-outcome-btn').forEach(btn => {
+        btn.addEventListener('click', () => openOutcomeModal(parseInt(btn.dataset.emailId)));
+      });
+    }
+
+    const DM_ROLE_LABELS = {
+      DON: 'Director of Nursing', ADMISSIONS_DIRECTOR: 'Admissions Director',
+      ADMINISTRATOR: 'Administrator', BOM: 'Business Office Manager',
+      SOCIAL_WORKER: 'Social Worker', CFO: 'CFO / Finance Director', OTHER: 'Other',
+    };
+
+    function buildEmailDraft(fac, patient) {
+      const dmName  = fac.decision_maker_name  || 'Admissions Team';
+      const dmRole  = DM_ROLE_LABELS[fac.decision_maker_role] || fac.decision_maker_role || 'Decision Maker';
+      const facName = fac.facility_name || fac.name || 'your facility';
+      const ptName  = patient?.name || 'our patient';
+      const ptNeeds = [
+        patient?.needs_memory_care && 'secured memory care',
+        patient?.needs_bariatric   && 'bariatric support',
+        patient?.needs_trach       && 'trach/respiratory care',
+        patient?.needs_wound_vac   && 'complex wound care',
+      ].filter(Boolean);
+      const needsLine = ptNeeds.length
+        ? `The patient requires ${ptNeeds.join(', ')}.`
+        : 'The patient has standard LTC care needs.';
+      const pendingStatus = { YES: 'accepts MassHealth pending directly', CASE_BY_CASE: 'reviews MassHealth pending cases individually', NO: 'does not currently accept MassHealth pending', UNKNOWN: 'has a policy we are seeking to clarify' }[fac.accepts_mh_pending] || 'has a pending policy we are following up on';
+
+      const subject = `MassHealth LTC Placement Inquiry — ${ptName} — ${facName}`;
+      const body = `Dear ${dmName},
+
+I am a hospital case manager reaching out regarding a MassHealth LTC placement for ${ptName}. Based on our records, ${facName} ${pendingStatus}.
+
+${needsLine}
+
+I would like to formally inquire about LTC bed availability for a MassHealth-pending admission and request the opportunity to submit a referral packet for your clinical and financial review.
+
+Could you please confirm:
+1. Whether an appropriate LTC bed is currently available (or anticipated)?
+2. Your current policy for MassHealth-pending applicants?
+3. Any specific documentation your Business Office requires before clinical review?
+
+I can provide the complete referral packet — including the SC-1 application receipt, PASRR Level 1 screen, MAR, and 3-month asset verification — at your request.
+
+Thank you for your time. I look forward to your response.
+
+Warm regards,
+Hospital Case Management Team`;
+
+      return { subject, body };
+    }
+
+    let _pendingEmailLog = null; // holds email data while outcome modal is open
+
+    function openEmailCompose() {
+      const fac = facilities.find(f => f.id === selectedFacilityId);
+      if (!fac) return;
+
+      // Save DM fields first (in case not yet saved)
+      fac.decision_maker_name  = document.getElementById('inputDmName')?.value  || fac.decision_maker_name  || '';
+      fac.decision_maker_role  = document.getElementById('inputDmRole')?.value  || fac.decision_maker_role  || '';
+      fac.decision_maker_email = document.getElementById('inputDmEmail')?.value || fac.decision_maker_email || '';
+
+      if (!fac.decision_maker_email) {
+        showToast('Add the decision maker\'s email first before drafting an email.');
+        document.getElementById('inputDmEmail')?.focus();
+        return;
+      }
+
+      const patient  = getActivePatient();
+      const { subject, body } = buildEmailDraft(fac, patient);
+
+      const dmLabel = fac.decision_maker_name
+        ? `${fac.decision_maker_name} (${DM_ROLE_LABELS[fac.decision_maker_role] || fac.decision_maker_role || 'DM'})`
+        : fac.decision_maker_email;
+
+      document.getElementById('emailComposeSubtitle').textContent = `${fac.facility_name || fac.name} · ${dmLabel}`;
+      document.getElementById('emailTo').value      = fac.decision_maker_email;
+      document.getElementById('emailSubject').value = subject;
+      document.getElementById('emailBody').value    = body;
+
+      // Default follow-up = 5 business days from now
+      const fu = new Date(); fu.setDate(fu.getDate() + 5);
+      document.getElementById('emailFollowUpDate').value = fu.toISOString().split('T')[0];
+
+      updateGmailLink();
+      document.getElementById('emailComposeModal').classList.remove('hidden');
+    }
+
+    function updateGmailLink() {
+      const to      = document.getElementById('emailTo')?.value || '';
+      const subject = document.getElementById('emailSubject')?.value || '';
+      const body    = document.getElementById('emailBody')?.value || '';
+      const link    = document.getElementById('emailGmailLink');
+      if (link) {
+        link.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+    }
+
+    function logEmailSent() {
+      const fac     = facilities.find(f => f.id === selectedFacilityId);
+      const patient = getActivePatient();
+      if (!fac) return;
+
+      const to           = document.getElementById('emailTo')?.value || '';
+      const subject      = document.getElementById('emailSubject')?.value || '';
+      const body         = document.getElementById('emailBody')?.value || '';
+      const followUpDate = document.getElementById('emailFollowUpDate')?.value || '';
+      const sentAt       = new Date().toISOString();
+
+      const emailEntry = {
+        id: Date.now(),
+        to, subject, body,
+        sent_at: sentAt,
+        follow_up_date: followUpDate,
+        decision_maker_name: fac.decision_maker_name || '',
+        decision_maker_role: fac.decision_maker_role || '',
+        outcome_status: 'NO_RESPONSE',
+        response_received: false,
+        response_date: null,
+        patient_id: patient?.id || null,
+      };
+
+      fac.email_outreach = fac.email_outreach || [];
+      fac.email_outreach.unshift(emailEntry);
+      if (followUpDate) fac.follow_up_date = followUpDate;
+      fac.last_contact_date = sentAt.split('T')[0];
+
+      // Add call log entry
+      fac.call_logs = fac.call_logs || [];
+      fac.call_logs.unshift({ date: sentAt.slice(0,16).replace('T',' '), note: `Email sent to ${fac.decision_maker_name || to} — "${subject}"` });
+
+      saveState();
+      renderCallLogs(fac);
+      renderEmailLog(fac);
+
+      // Sync to D1
+      if (WORKER_URL) {
+        d1Fetch(`/api/facilities/${fac.id}/email-outreach`, 'POST', {
+          patient_id: patient?.id || null,
+          decision_maker_name: fac.decision_maker_name,
+          decision_maker_role: fac.decision_maker_role,
+          to_email: to, subject, body,
+          sent_at: sentAt, follow_up_date: followUpDate,
+        });
+      }
+
+      _pendingEmailLog = emailEntry;
+      document.getElementById('emailComposeModal').classList.add('hidden');
+
+      // Pre-fill outcome follow-up date
+      document.getElementById('outcomeFollowUpDate').value = followUpDate;
+      document.getElementById('outcomeResponseDate').value = '';
+      document.getElementById('outcomeResponseReceived').value = '0';
+      document.querySelector('input[name="outcomeStatus"][value="NO_RESPONSE"]').checked = true;
+      document.getElementById('emailOutcomeModal').classList.remove('hidden');
+    }
+
+    function openOutcomeModal(emailId) {
+      const fac = facilities.find(f => f.id === selectedFacilityId);
+      if (!fac) return;
+      _pendingEmailLog = fac.email_outreach?.find(e => e.id === emailId) || null;
+      document.getElementById('outcomeFollowUpDate').value = _pendingEmailLog?.follow_up_date || '';
+      document.getElementById('outcomeResponseDate').value = '';
+      document.getElementById('outcomeResponseReceived').value = '0';
+      document.querySelector('input[name="outcomeStatus"][value="NO_RESPONSE"]').checked = true;
+      document.getElementById('emailOutcomeModal').classList.remove('hidden');
+    }
+
+    function saveOutcome() {
+      if (!_pendingEmailLog) return;
+      const fac = facilities.find(f => f.id === selectedFacilityId);
+      if (!fac) return;
+
+      const status          = document.querySelector('input[name="outcomeStatus"]:checked')?.value || 'NO_RESPONSE';
+      const responseRcvd    = document.getElementById('outcomeResponseReceived')?.value === '1';
+      const responseDate    = document.getElementById('outcomeResponseDate')?.value || null;
+      const followUpDate    = document.getElementById('outcomeFollowUpDate')?.value || null;
+
+      _pendingEmailLog.outcome_status      = status;
+      _pendingEmailLog.response_received   = responseRcvd;
+      _pendingEmailLog.response_date       = responseDate;
+      _pendingEmailLog.follow_up_date      = followUpDate;
+
+      if (followUpDate) fac.follow_up_date = followUpDate;
+      saveState();
+      renderEmailLog(fac);
+
+      // Sync outcome to D1
+      if (WORKER_URL && _pendingEmailLog.d1_id) {
+        d1Fetch(`/api/email-outreach/${_pendingEmailLog.d1_id}/outcome`, 'PATCH', {
+          outcome_status: status,
+          response_received: responseRcvd,
+          response_date: responseDate,
+          follow_up_date: followUpDate,
+        });
+      }
+
+      document.getElementById('emailOutcomeModal').classList.add('hidden');
+      showToast(`Outcome logged: ${status.replace('_',' ')}`);
+      _pendingEmailLog = null;
+    }
+
     function saveCurrentIntakeForm() {
       const fac = facilities.find(f => f.id === selectedFacilityId);
       if (!fac) return;
@@ -2830,6 +3216,12 @@ Notary Public, Commonwealth of Massachusetts`;
       fac.referral_status = getVal('selectReferralStatus') || 'NOT_STARTED';
       fac.follow_up_date = getVal('inputFollowUpDate');
       fac.notes = getVal('inputNotes');
+
+      // Decision maker
+      fac.decision_maker_name  = getVal('inputDmName');
+      fac.decision_maker_role  = getVal('inputDmRole');
+      fac.decision_maker_email = getVal('inputDmEmail');
+      fac.decision_maker_phone = getVal('inputDmPhone');
       fac.requires_asset_prescreen = getCheck('checkAssetPrescreen');
       fac.requires_app_receipt = getCheck('checkAppReceipt');
       fac.requires_pasrr_level = getCheck('checkPasrrLevel');
@@ -3451,6 +3843,19 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
           showToast('Logged admissions contact record.');
         }
       });
+
+      // Email Compose Modal
+      safeOn('openEmailComposeBtn', 'click', openEmailCompose);
+      safeOn('closeEmailCompose',  'click', () => document.getElementById('emailComposeModal').classList.add('hidden'));
+      safeOn('closeEmailCompose2', 'click', () => document.getElementById('emailComposeModal').classList.add('hidden'));
+      safeOn('logEmailSentBtn', 'click', logEmailSent);
+      // Keep Gmail mailto link in sync with edits
+      ['emailTo','emailSubject','emailBody'].forEach(id => safeOn(id, 'input', updateGmailLink));
+
+      // Email Outcome Modal
+      safeOn('closeOutcomeModal',  'click', () => document.getElementById('emailOutcomeModal').classList.add('hidden'));
+      safeOn('closeOutcomeModal2', 'click', () => document.getElementById('emailOutcomeModal').classList.add('hidden'));
+      safeOn('saveOutcomeBtn', 'click', saveOutcome);
 
       // Referral Packet Cover Memo
       safeOn('packetGenTrigger', 'click', () => {

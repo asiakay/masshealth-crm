@@ -294,6 +294,71 @@ export default {
         }
       }
 
+      // GET/POST /api/facilities/:id/email-outreach
+      const emailMatch = path.match(/^\/api\/facilities\/(\d+)\/email-outreach$/);
+      if (emailMatch) {
+        const id = parseInt(emailMatch[1]);
+        if (method === 'GET') {
+          const { results } = await db
+            .prepare('SELECT * FROM email_outreach WHERE facility_id = ? ORDER BY sent_at DESC')
+            .bind(id).all();
+          return json(results);
+        }
+        if (method === 'POST') {
+          const b = await request.json();
+          const { lastRowId } = await db.prepare(`
+            INSERT INTO email_outreach
+              (facility_id, patient_id, decision_maker_name, decision_maker_role,
+               to_email, subject, body, sent_at, follow_up_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            id, b.patient_id ?? null,
+            b.decision_maker_name ?? null, b.decision_maker_role ?? null,
+            b.to_email, b.subject ?? null, b.body ?? null,
+            b.sent_at ?? new Date().toISOString(),
+            b.follow_up_date ?? null,
+          ).run();
+
+          // progress event
+          if (b.patient_id) {
+            await db.prepare(`
+              INSERT INTO progress_events (patient_id, facility_id, event_type, new_value)
+              VALUES (?, ?, 'EMAIL_SENT', ?)
+            `).bind(b.patient_id, id, b.subject ?? '').run();
+          }
+          return json({ ok: true, id: lastRowId }, 201);
+        }
+      }
+
+      // PATCH /api/email-outreach/:id — log outcome
+      const outcomePatch = path.match(/^\/api\/email-outreach\/(\d+)\/outcome$/);
+      if (outcomePatch && method === 'PATCH') {
+        const id = parseInt(outcomePatch[1]);
+        const b = await request.json();
+        await db.prepare(`
+          UPDATE email_outreach
+          SET response_received = ?, response_date = ?,
+              outcome_status = ?, follow_up_date = ?
+          WHERE id = ?
+        `).bind(
+          b.response_received ? 1 : 0,
+          b.response_date ?? null,
+          b.outcome_status ?? 'NO_RESPONSE',
+          b.follow_up_date ?? null,
+          id,
+        ).run();
+
+        // progress event
+        const row = await db.prepare('SELECT patient_id, facility_id FROM email_outreach WHERE id = ?').bind(id).first();
+        if (row?.patient_id) {
+          await db.prepare(`
+            INSERT INTO progress_events (patient_id, facility_id, event_type, new_value)
+            VALUES (?, ?, 'EMAIL_OUTCOME', ?)
+          `).bind(row.patient_id, row.facility_id, b.outcome_status ?? 'NO_RESPONSE').run();
+        }
+        return json({ ok: true });
+      }
+
       return err('Not found', 404);
     } catch (e) {
       console.error(e);
