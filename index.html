@@ -1,0 +1,2892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MassHealth SNF Placement Intelligence CRM</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .modal-backdrop-blur {
+      background-color: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(5px);
+    }
+    .pulse-indicator {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-blue-200">
+
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xl shadow-xs">
+          🏥
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">MassHealth Placement Intelligence</h1>
+            <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Operational CRM v4.0</span>
+          </div>
+          <p class="text-xs text-slate-500">Rapid SNF triage, MassHealth Pending authorization verification & fast elimination pipeline</p>
+        </div>
+      </div>
+
+      <!-- Action Toolbar -->
+      <div class="flex items-center flex-wrap gap-2">
+        <button id="ppaCalculatorModalTrigger" type="button" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 shadow-xs transition" title="Calculate MassHealth resident monthly income assignment">
+          <span>🧮 PPA Calculator</span>
+        </button>
+
+        <button id="packetGenTrigger" type="button" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-purple-50 border border-purple-200 text-purple-800 text-xs font-semibold hover:bg-purple-100 shadow-xs transition" title="Generate fax/email cover memo for active admissions referral">
+          <span>📄 Fax Cover Sheet</span>
+        </button>
+
+        <button id="batchDisqualifyModalTrigger" type="button" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-100 shadow-xs transition">
+          <svg class="w-3.5 h-3.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+          <span>Batch Rules</span>
+        </button>
+
+        <button id="npiLookupModalTrigger" type="button" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 shadow-xs transition">
+          <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <span>NPI Registry</span>
+        </button>
+
+        <button id="seedFullRosterBtn" type="button" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-sky-800 text-xs font-semibold hover:bg-sky-100 shadow-xs transition" title="Reload complete 32+ Massachusetts SNF Directory">
+          <span>🏛️ Seed Full Directory (32+)</span>
+        </button>
+
+        <button id="exportCsvBtn" type="button" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-xs transition">
+          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <span>Export CSV</span>
+        </button>
+
+        <button id="openAddFacilityModalBtn" type="button" class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-xs transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span>+ Add Facility</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2 w-full">
+    <!-- Triage Metrics Ribbon -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Active Triage</span>
+          <span class="w-2 h-2 rounded-full bg-blue-500 pulse-indicator"></span>
+        </div>
+        <p id="metricActiveQueue" class="text-2xl font-black text-slate-800 mt-0.5">0</p>
+      </div>
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+        <span class="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider block">MH Pending: YES</span>
+        <p id="metricPendingYes" class="text-2xl font-black text-emerald-700 mt-0.5">0</p>
+      </div>
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+        <span class="text-[11px] font-semibold text-blue-600 uppercase tracking-wider block">Bed Open Now</span>
+        <p id="metricBedsOpen" class="text-2xl font-black text-blue-700 mt-0.5">0</p>
+      </div>
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+        <span class="text-[11px] font-semibold text-purple-600 uppercase tracking-wider block">Under Review / Offer</span>
+        <p id="metricActiveReviews" class="text-2xl font-black text-purple-700 mt-0.5">0</p>
+      </div>
+      <div class="bg-rose-50 p-3.5 rounded-xl border border-rose-200 shadow-xs">
+        <span class="text-[11px] font-semibold text-rose-600 uppercase tracking-wider block">Eliminated / Disqualified</span>
+        <p id="metricDisqualified" class="text-2xl font-black text-rose-700 mt-0.5">0</p>
+      </div>
+    </div>
+
+    <div class="mt-3 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-xl p-3.5 shadow-xs border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+      <div class="space-y-1">
+        <div class="flex items-center space-x-2">
+          <span class="bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded text-[10px] tracking-wide uppercase border border-emerald-400/30">Admissions Protocol</span>
+          <span class="text-slate-300 font-medium">Standard 3-Question Intake Triage</span>
+          <span class="hidden sm:inline-block bg-slate-700 text-slate-300 font-mono text-[10px] px-1.5 py-0.5 rounded">Hotkeys: [J/K] Next/Prev [D] Disqualify [S] Save</span>
+        </div>
+        <p class="text-slate-300 text-[11px] leading-relaxed">
+          <strong>Q1:</strong> "Do you currently accept LTC admissions with MassHealth pending?" → 
+          <strong>Q2:</strong> "What financial/asset documents are required prior to clinical screening?" → 
+          <strong>Q3:</strong> "Who coordinates pending intakes & what is the direct fax/email for referral packets?"
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="toggleScriptGuideBtn" type="button" class="flex-shrink-0 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold rounded-lg text-xs border border-slate-600 transition">
+          Admissions Playbook ▾
+        </button>
+      </div>
+    </div>
+
+    <!-- Expandable Detailed Call Navigation Guide -->
+    <div id="detailedScriptGuide" class="hidden mt-2 p-4 bg-white border border-slate-200 rounded-xl text-xs space-y-2 text-slate-700 shadow-xs">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+        <h3 class="font-bold text-slate-900 text-sm">Massachusetts Skilled Nursing Facility Admissions Playbook</h3>
+        <span class="text-[11px] text-slate-500">MassHealth LTC Regs 130 CMR 520.000</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-[11px]">
+        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+          <strong class="text-slate-900 block mb-1">1. Bypass Floor Gatekeepers:</strong>
+          <p class="text-slate-600">General reception desks frequently state "We don't take Medicaid pending" out of reflex. Always request the <strong>Admissions Director</strong> or <strong>Business Office Manager (BOM)</strong> directly.</p>
+        </div>
+        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+          <strong class="text-slate-900 block mb-1">2. PPA Assignment Readiness:</strong>
+          <p class="text-slate-600">Assure the BOM that the resident/DPOA is prepared to sign an immediate agreement assigning the monthly Social Security check (minus $72.80 personal allowance) directly to the facility.</p>
+        </div>
+        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+          <strong class="text-slate-900 block mb-1">3. MassHealth Tracking Receipts:</strong>
+          <p class="text-slate-600">Having the official MassHealth SC-1 or electronic document submission receipt drastically increases willingness to review clinical packets without 4-week private-pay requirements.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 w-full flex-1">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      
+      <!-- Left Column: Search, Triage Tabs, & Facility Roster (7 Cols) -->
+      <section class="lg:col-span-7 space-y-3.5">
+
+        <!-- Stage Tabs: Active Queue vs Disqualified Archive vs All -->
+        <div class="flex border-b border-slate-200 bg-white rounded-t-xl px-4 pt-3 gap-5 text-xs font-bold shadow-2xs">
+          <button id="tabActive" type="button" class="pb-3 border-b-2 border-blue-600 text-blue-600 flex items-center space-x-1.5 transition">
+            <span>⚡ Active Triage Queue</span>
+            <span id="tabCountActive" class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-[10px]">0</span>
+          </button>
+          <button id="tabDisqualified" type="button" class="pb-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-1.5 transition">
+            <span>🚫 Disqualified Archive</span>
+            <span id="tabCountDisqualified" class="bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-full text-[10px]">0</span>
+          </button>
+          <button id="tabAll" type="button" class="pb-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-1.5 transition">
+            <span>All Facilities</span>
+            <span id="tabCountAll" class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px]">0</span>
+          </button>
+        </div>
+
+        <div class="bg-white p-3.5 rounded-b-xl border border-t-0 border-slate-200 shadow-xs space-y-2.5">
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+            <div class="sm:col-span-6 relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+              </span>
+              <input id="searchInput" type="text" placeholder="Search facility, city, NPI, CCN, notes..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+            </div>
+            <div class="sm:col-span-3">
+              <select id="citySelect" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="ALL">All Municipalities</option>
+              </select>
+            </div>
+            <div class="sm:col-span-3">
+              <select id="sortSelect" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="DEFAULT">Sort: Priority</option>
+                <option value="RATING_DESC">CMS Rating (High-Low)</option>
+                <option value="NAME_ASC">Name (A-Z)</option>
+                <option value="BEDS_DESC">Total Beds (High-Low)</option>
+                <option value="RECENT_CONTACT">Recent Contact</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Quick Filter Toggles -->
+          <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
+            <span class="text-slate-400 font-semibold text-[11px] mr-1">Quick:</span>
+            <button id="filterClear" type="button" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-900 text-white transition">All</button>
+            <button id="filterPendingYes" type="button" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">✓ MH Pending: YES</button>
+            <button id="filterBedOpen" type="button" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition">🛏️ Bed Open</button>
+            <button id="filterMemoryCare" type="button" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 transition">🧠 Memory Care</button>
+            <button id="filterNeedsCall" type="button" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 transition">❓ Needs Call</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div class="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center text-xs font-bold text-slate-600">
+            <div class="flex items-center space-x-2">
+              <input type="checkbox" id="selectAllCheckbox" class="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer">
+              <span id="rosterHeaderLabel">ACTIVE TRIAGE ROSTER</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span id="rosterSelectionStatus" class="hidden text-[11px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-medium">0 selected</span>
+              <span class="text-[11px] text-slate-400 font-normal">Click facility to open intake terminal</span>
+            </div>
+          </div>
+
+          <div id="facilitiesListContainer" class="divide-y divide-slate-100 max-h-[640px] overflow-y-auto">
+            <!-- Populated via JavaScript -->
+          </div>
+        </div>
+      </section>
+
+      <section class="lg:col-span-5 bg-white rounded-xl border border-slate-200 shadow-xs p-4 sticky top-16">
+        <div class="border-b border-slate-200 pb-3 mb-3 flex justify-between items-start gap-2">
+          <div>
+            <div class="flex items-center space-x-1.5">
+              <span class="text-[10px] font-bold tracking-wider text-blue-600 uppercase">Admissions Terminal</span>
+              <span id="intakeDisqualifiedBadge" class="hidden bg-rose-100 text-rose-700 text-[10px] font-bold px-1.5 py-0.2 rounded uppercase">
+                Archived / Eliminated
+              </span>
+              <span id="cmsRatingBadge" class="text-[11px] text-amber-500 font-bold tracking-tight"></span>
+            </div>
+            <h2 id="intakeFacilityName" class="text-base font-bold text-slate-900 mt-0.5 leading-tight">Marian Manor of South Boston</h2>
+            <p id="intakeFacilityAddress" class="text-[11px] text-slate-500">130 Dorchester St, South Boston, MA 02127 | CCN: 225102</p>
+          </div>
+
+          <!-- Direct Dial, Quick Fax, & Disqualification Action -->
+          <div class="flex items-center space-x-1.5 flex-shrink-0">
+            <a id="intakeCallLink" href="tel:6172683333" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 p-2 rounded-lg flex items-center justify-center transition shadow-2xs" title="Dial admissions office">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+              </svg>
+            </a>
+            <button id="intakeDisqualifyBtn" type="button" class="bg-rose-50 text-rose-700 hover:bg-rose-100 p-2 rounded-lg flex items-center justify-center transition shadow-2xs" title="Disqualify this facility [D]">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Fast Elimination Action Callout -->
+        <div id="fastDisqualifyBar" class="mb-3 p-2 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-rose-900 block">Fast Elimination Action</span>
+            <span class="text-[10px] text-rose-700">Disqualify and auto-advance to next candidate:</span>
+          </div>
+          <button id="fastDisqualifyTrigger" type="button" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold text-[10px] shadow-xs transition">
+            ✕ Disqualify & Advance
+          </button>
+        </div>
+
+        <form id="intakeForm" class="space-y-3 text-xs">
+          <!-- Question 1: MassHealth Pending Policy -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">
+              1. Does this facility accept MassHealth PENDING? <span class="text-rose-500">*</span>
+            </label>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button type="button" data-val="YES" class="pending-btn py-1.5 px-2 text-center rounded-lg border font-medium text-slate-700 border-slate-200 hover:bg-slate-50 transition">
+                YES (Accepts)
+              </button>
+              <button type="button" data-val="CASE_BY_CASE" class="pending-btn py-1.5 px-2 text-center rounded-lg border font-medium text-slate-700 border-slate-200 hover:bg-slate-50 transition">
+                Case-by-Case
+              </button>
+              <button type="button" data-val="NO" class="pending-btn py-1.5 px-2 text-center rounded-lg border font-medium text-slate-700 border-slate-200 hover:bg-slate-50 transition">
+                NO (Strict Policy)
+              </button>
+              <button type="button" data-val="UNKNOWN" class="pending-btn py-1.5 px-2 text-center rounded-lg border font-medium text-slate-700 border-slate-200 hover:bg-slate-50 transition">
+                Unknown / Needs Call
+              </button>
+            </div>
+          </div>
+
+          <!-- Question 2: Bed Available Now? -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">
+              2. Is an appropriate bed available NOW?
+            </label>
+            <div class="grid grid-cols-4 gap-1.5">
+              <button type="button" data-bed="YES" class="bed-btn py-1.5 px-1 rounded-lg border text-center font-medium text-slate-700 border-slate-200 hover:bg-slate-50 transition">YES</button>
+              <button type="button" data-bed="WAITLIST" class="bed-btn py-1.5 px-1 rounded-lg border text-center font-medium text-slate-700 border-slate-200 hover:bg-slate-50 transition">WAITLIST</button>
+              <button type="button" data-bed="NO" class="bed-btn py-1.5 px-1 rounded-lg border text-center font-medium text-slate-700 border-slate-200 hover:bg-slate-50 transition">NO</button>
+              <button type="button" data-bed="UNKNOWN" class="bed-btn py-1.5 px-1 rounded-lg border text-center font-medium text-slate-700 border-slate-200 hover:bg-slate-50 transition">UNKNOWN</button>
+            </div>
+          </div>
+
+          <!-- Gatekeeper Requirements -->
+          <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-1.5">
+            <span class="font-bold text-slate-700 block text-[11px]">MassHealth Pending Gatekeepers:</span>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input id="checkAssetPrescreen" type="checkbox" class="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5">
+              <span class="text-slate-700 text-[11px]">Requires 3-month asset & bank statement review</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input id="checkAppReceipt" type="checkbox" class="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5">
+              <span class="text-slate-700 text-[11px]">Requires MassHealth SC-1 submission tracking receipt</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input id="checkPasrrLevel" type="checkbox" class="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5">
+              <span class="text-slate-700 text-[11px]">Requires active PASRR Level 1 / Section Q confirmation</span>
+            </label>
+          </div>
+
+          <!-- Clinical Capabilities Matrix -->
+          <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-1.5">
+            <span class="font-bold text-slate-700 block text-[11px]">Clinical Capabilities:</span>
+            <div class="grid grid-cols-2 gap-2 text-[11px]">
+              <label class="flex items-center space-x-1.5 cursor-pointer">
+                <input id="checkMemoryCare" type="checkbox" class="rounded text-purple-600 focus:ring-purple-500 h-3.5 w-3.5">
+                <span class="text-slate-700">Secured Memory Care</span>
+              </label>
+              <label class="flex items-center space-x-1.5 cursor-pointer">
+                <input id="checkBariatric" type="checkbox" class="rounded text-purple-600 focus:ring-purple-500 h-3.5 w-3.5">
+                <span class="text-slate-700">Bariatric Bed Available</span>
+              </label>
+              <label class="flex items-center space-x-1.5 cursor-pointer">
+                <input id="checkTrach" type="checkbox" class="rounded text-purple-600 focus:ring-purple-500 h-3.5 w-3.5">
+                <span class="text-slate-700">Trach / IV Therapy</span>
+              </label>
+              <label class="flex items-center space-x-1.5 cursor-pointer">
+                <input id="checkWoundVac" type="checkbox" class="rounded text-purple-600 focus:ring-purple-500 h-3.5 w-3.5">
+                <span class="text-slate-700">Complex Wound Care</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Direct Admissions Contacts -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-medium text-slate-600 mb-0.5 text-[11px]">Admissions Contact</label>
+              <input id="inputContactName" type="text" placeholder="e.g. Linda Smith" class="w-full p-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none text-xs">
+            </div>
+            <div>
+              <label class="block font-medium text-slate-600 mb-0.5 text-[11px]">Direct Email / Fax</label>
+              <input id="inputContactEmail" type="text" placeholder="intake@facility.org" class="w-full p-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none text-xs">
+            </div>
+          </div>
+
+          <!-- Placement Stage & Next Follow Up -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-bold text-slate-700 mb-0.5 text-[11px]">Placement Stage</label>
+              <select id="selectReferralStatus" class="w-full p-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 outline-none text-xs">
+                <option value="NOT_STARTED">Not Started / Pre-screen</option>
+                <option value="PACKET_SENT">Packet Sent</option>
+                <option value="CLINICAL_REVIEW">Under Clinical Review</option>
+                <option value="FINANCIAL_REVIEW">Financial / BOM Review</option>
+                <option value="ACCEPTED">ACCEPTED (Bed Offered)</option>
+                <option value="DENIED">DENIED (Clinical / Financial)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-0.5 text-[11px]">Follow-Up Target</label>
+              <input id="inputFollowUpDate" type="date" class="w-full p-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+
+          <!-- Operational Notes -->
+          <div>
+            <label class="block font-medium text-slate-600 mb-0.5 text-[11px]">Operational & Clinical Notes</label>
+            <textarea id="inputNotes" rows="2" placeholder="Record PPA details, spenddown requirements, or rejection reason..." class="w-full p-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-xs"></textarea>
+          </div>
+
+          <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+            <div class="flex justify-between items-center mb-1.5">
+              <span class="font-bold text-slate-700 text-[11px]">Admissions Contact Log</span>
+              <button id="addQuickCallLogBtn" type="button" class="text-[10px] text-blue-600 hover:text-blue-800 font-bold underline">
+                + Quick Log
+              </button>
+            </div>
+            <div id="callLogTimeline" class="space-y-1.5 max-h-24 overflow-y-auto pr-1 text-[10px]">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <button type="submit" class="w-full py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg shadow-sm transition flex items-center justify-center space-x-2 text-xs">
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+            </svg>
+            <span>Save Intake Record (Ctrl+S)</span>
+          </button>
+        </form>
+      </section>
+
+    </div>
+  </main>
+
+  <div id="ppaCalculatorModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop-blur p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
+      <div class="px-5 py-3.5 bg-emerald-900 text-white flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <span class="text-base">🧮</span>
+          <div>
+            <h3 class="text-sm font-bold">MassHealth Patient-Paid Amount (PPA) Calculator</h3>
+            <p class="text-[10px] text-emerald-200">Standard 130 CMR 520.026 Patient Income Contribution Estimator</p>
+          </div>
+        </div>
+        <button id="closePpaModal" type="button" class="text-emerald-200 hover:text-white">✕</button>
+      </div>
+
+      <div class="p-5 space-y-3.5 text-xs">
+        <p class="text-slate-600 text-[11px]">
+          Massachusetts nursing homes require pending applicants to turn over their monthly income minus allowed deductions. Share this calculated PPA with the Business Office Manager.
+        </p>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Monthly Social Security ($)</label>
+            <input id="ppaInputSs" type="number" value="1650" step="10" class="w-full p-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Monthly Pension / Annuity ($)</label>
+            <input id="ppaInputPension" type="number" value="450" step="10" class="w-full p-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Personal Needs Allowance (PNA)</label>
+            <input id="ppaInputPna" type="number" value="72.80" readonly class="w-full p-2 bg-slate-100 border border-slate-300 rounded-lg text-xs font-mono text-slate-600">
+            <span class="text-[9px] text-slate-400">Statutory MA LTC PNA rate</span>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Medicare Part B / Medigap ($)</label>
+            <input id="ppaInputHealthIns" type="number" value="174.70" step="5" class="w-full p-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <!-- Calculated Summary Box -->
+        <div class="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1 text-center">
+          <span class="text-[11px] font-bold text-emerald-900 uppercase tracking-wider block">Estimated Monthly Facility PPA Check</span>
+          <p id="ppaCalculatedResult" class="text-3xl font-black text-emerald-700 font-mono">$1,852.50</p>
+          <span class="text-[10px] text-emerald-800 block">Payable monthly directly to the SNF business office while MassHealth is pending.</span>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-slate-100">
+          <button id="insertPpaIntoNotesBtn" type="button" class="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-xs transition">
+            Insert PPA Into Active Intake Notes
+          </button>
+          <button id="closePpaModalBtn" type="button" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="packetModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop-blur p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden">
+      <div class="px-5 py-3.5 bg-purple-900 text-white flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <span class="text-base">📄</span>
+          <div>
+            <h3 class="text-sm font-bold">Referral Packet Cover Memo</h3>
+            <p class="text-[10px] text-purple-200">Direct transmission sheet for hospital discharge coordinators & case managers</p>
+          </div>
+        </div>
+        <button id="closePacketModal" type="button" class="text-purple-200 hover:text-white">✕</button>
+      </div>
+
+      <div class="p-5 space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Referral Subject / Resident Header</label>
+          <input id="packetResidentHeader" type="text" value="URGENT SNF LTC Referral - MassHealth Pending Package" class="w-full p-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Generated Cover Memo (Formatted for Fax / Secure Email)</label>
+          <textarea id="packetTextarea" rows="9" class="w-full p-3 font-mono text-[11px] bg-slate-50 border border-slate-300 rounded-xl leading-relaxed outline-none"></textarea>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-slate-100">
+          <button id="copyPacketBtn" type="button" class="flex-1 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-lg font-bold shadow-xs transition flex items-center justify-center space-x-2">
+            <span>📋 Copy Cover Sheet to Clipboard</span>
+          </button>
+          <button id="closePacketModalBtn" type="button" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="disqualifyModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop-blur p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
+      <div class="px-5 py-3.5 bg-rose-50 border-b border-rose-100 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <span class="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-xs font-bold">✕</span>
+          <h3 class="text-sm font-bold text-rose-900">Disqualify & Archive Facility</h3>
+        </div>
+        <button id="closeDisqualifyModal" type="button" class="text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+
+      <div class="p-5 space-y-3.5 text-xs">
+        <p class="text-slate-600">
+          Eliminating <strong id="disqualifyModalFacilityName" class="text-slate-900">Facility</strong> from your active calling queue.
+        </p>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Select Elimination Reason:</label>
+          <div class="space-y-1.5" id="disqualificationRadioGroup">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-600 mb-1">Reason Details / Audit Notes (Optional):</label>
+          <textarea id="disqualifyAuditNotes" rows="2" placeholder="e.g. Confirmed zero Medicaid pending beds; requires $100k private spenddown first." class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-rose-500"></textarea>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-slate-100">
+          <button id="cancelDisqualifyBtn" type="button" class="flex-1 py-1.5 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50">
+            Cancel
+          </button>
+          <button id="confirmDisqualifyBtn" type="button" class="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold shadow-xs transition">
+            Confirm & Advance
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="batchRulesModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop-blur p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
+      <div class="px-5 py-3.5 bg-slate-900 text-white flex justify-between items-center">
+        <div>
+          <h3 class="text-sm font-bold">Systemic Batch Disqualification Rules</h3>
+          <p class="text-[10px] text-slate-400">Eliminate unviable facilities in bulk without manual dialing</p>
+        </div>
+        <button id="closeBatchRulesModal" type="button" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="p-5 space-y-3.5 text-xs">
+        <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 space-y-1">
+          <span class="font-bold block text-[11px]">⚡ Automated Rule Execution</span>
+          <p class="text-[11px]">
+            Execute batch criteria to move facilities directly into the Disqualified Archive so you never waste time dialing them.
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          <button id="ruleNoPending" type="button" class="w-full text-left p-3 border border-slate-200 hover:border-rose-400 hover:bg-rose-50/40 rounded-xl transition flex justify-between items-center group">
+            <div>
+              <span class="font-bold text-slate-900 block group-hover:text-rose-900">Rule 1: Disqualify All "Pending = NO"</span>
+              <span class="text-[11px] text-slate-500">Archive all facilities with verified strict no-pending policies.</span>
+            </div>
+            <span class="px-2 py-1 bg-rose-100 text-rose-800 font-bold rounded text-[10px]">Run Rule →</span>
+          </button>
+
+          <button id="ruleNoBeds" type="button" class="w-full text-left p-3 border border-slate-200 hover:border-rose-400 hover:bg-rose-50/40 rounded-xl transition flex justify-between items-center group">
+            <div>
+              <span class="font-bold text-slate-900 block group-hover:text-rose-900">Rule 2: Disqualify All "Bed Open = NO"</span>
+              <span class="text-[11px] text-slate-500">Archive full facilities closed to admissions.</span>
+            </div>
+            <span class="px-2 py-1 bg-rose-100 text-rose-800 font-bold rounded text-[10px]">Run Rule →</span>
+          </button>
+
+          <button id="ruleSelectedCheckboxes" type="button" class="w-full text-left p-3 border border-blue-200 bg-blue-50/50 hover:bg-rose-50 hover:border-rose-400 rounded-xl transition flex justify-between items-center group">
+            <div>
+              <span class="font-bold text-slate-900 block group-hover:text-rose-900">Rule 3: Disqualify Selected Checkboxes</span>
+              <span id="selectedCountLabel" class="text-[11px] text-slate-500">0 facilities currently selected.</span>
+            </div>
+            <span class="px-2 py-1 bg-rose-600 text-white font-bold rounded text-[10px]">Disqualify Checked →</span>
+          </button>
+        </div>
+
+        <div class="pt-2 border-t border-slate-100 flex justify-end">
+          <button id="closeBatchRulesBtn" type="button" class="px-4 py-1.5 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="npiLookupModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop-blur p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
+      <div class="px-5 py-3.5 bg-indigo-900 text-white flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <span class="text-base">🔍</span>
+          <div>
+            <h3 class="text-sm font-bold">CMS NPPES Registry Live Query</h3>
+            <p class="text-[10px] text-indigo-200">Query national NPI records and state Medicaid IDs in real-time</p>
+          </div>
+        </div>
+        <button id="closeNpiModal" type="button" class="text-indigo-200 hover:text-white">✕</button>
+      </div>
+
+      <div class="p-5 space-y-3.5 text-xs">
+        <form id="npiSearchForm" class="flex gap-2">
+          <input id="npiInputQuery" type="text" placeholder="Enter 10-digit NPI (e.g. 1992812929 for Harborlights)" class="flex-1 p-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-800">
+          <button id="npiSubmitBtn" type="submit" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition">
+            Query NPI
+          </button>
+        </form>
+
+        <div id="npiErrorMessage" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700"></div>
+
+        <!-- Result Card -->
+        <div id="npiResultCard" class="hidden p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+          <div class="flex justify-between items-start">
+            <div>
+              <h4 id="npiResOrgName" class="font-bold text-sm text-slate-900">Organization Name</h4>
+              <p id="npiResAddress" class="text-slate-600 text-xs">Street, City, State ZIP</p>
+            </div>
+            <span id="npiResNpiNumber" class="bg-indigo-100 text-indigo-800 font-mono font-bold text-[10px] px-2 py-0.5 rounded">
+              NPI: 0000000000
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-200 text-slate-600">
+            <div><strong>Phone:</strong> <span id="npiResPhone">—</span></div>
+            <div><strong>Fax:</strong> <span id="npiResFax">—</span></div>
+            <div><strong>Taxonomy:</strong> <span id="npiResTaxonomy">—</span></div>
+            <div><strong>Last Registry Update:</strong> <span id="npiResLastUpdated">—</span></div>
+            <div id="npiResMedicaidRow" class="col-span-2 text-emerald-800 font-semibold">
+              ✓ MassHealth ID on Record: <span id="npiResMedicaidId">—</span>
+            </div>
+            <div id="npiResOfficialRow" class="col-span-2 text-slate-700">
+              <strong>Authorized Official:</strong> <span id="npiResOfficial">—</span>
+            </div>
+          </div>
+
+          <div id="npiStaleWarning" class="hidden p-2 bg-amber-50 border border-amber-200 rounded text-amber-900 text-[11px]">
+            ⚠️ <strong>Stale Identity Warning:</strong> This record was last updated years ago. It may represent a closed or superseded operating entity.
+          </div>
+
+          <button id="npiImportBtn" type="button" class="w-full mt-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-xs transition">
+            + Import Into Active Admissions Queue
+          </button>
+        </div>
+
+        <div class="flex justify-end pt-2 border-t border-slate-100">
+          <button id="closeNpiModalBtn" type="button" class="px-3.5 py-1.5 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="addFacilityModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop-blur p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
+      <div class="px-5 py-3.5 bg-blue-900 text-white flex justify-between items-center">
+        <h3 class="text-sm font-bold">+ Add New Massachusetts Facility</h3>
+        <button id="closeAddFacilityModal" type="button" class="text-blue-200 hover:text-white">✕</button>
+      </div>
+      <form id="addFacilityForm" class="p-5 space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Facility Name *</label>
+          <input id="addFacName" required type="text" placeholder="e.g. Park Avenue Nursing & Rehab" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-medium text-slate-600 mb-1">Municipality (City) *</label>
+            <input id="addFacCity" required type="text" placeholder="Boston" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-600 mb-1">Admissions Phone *</label>
+            <input id="addFacPhone" required type="text" placeholder="(617) 555-0199" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-medium text-slate-600 mb-1">Street Address</label>
+            <input id="addFacStreet" type="text" placeholder="100 Main St" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-600 mb-1">ZIP Code</label>
+            <input id="addFacZip" type="text" placeholder="02100" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-medium text-slate-600 mb-1">CMS Star Rating (1-5)</label>
+            <select id="addFacRating" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="5">5 Stars</option>
+              <option value="4">4 Stars</option>
+              <option value="3" selected>3 Stars</option>
+              <option value="2">2 Stars</option>
+              <option value="1">1 Star</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-600 mb-1">Total Licensed Beds</label>
+            <input id="addFacBeds" type="number" value="120" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+        <div class="pt-2 border-t border-slate-100 flex gap-2">
+          <button id="cancelAddFacilityBtn" type="button" class="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50">Cancel</button>
+          <button type="submit" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-xs transition">+ Add to Pipeline</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toastNotification" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl text-xs sm:text-sm flex items-center space-x-2 border border-slate-700 transition-all">
+    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+    </svg>
+    <span id="toastText">Action completed successfully.</span>
+  </div>
+
+  <script>
+    const INITIAL_FACILITIES = [
+      {
+        id: 1,
+        facility_name: "Marian Manor of South Boston",
+        street_address: "130 Dorchester St",
+        city: "South Boston",
+        zip: "02127",
+        region: "Greater Boston",
+        ccn: "225102",
+        npi: "1487693289",
+        total_beds: 120,
+        overall_rating: 4,
+        admissions_phone: "(617) 268-3333",
+        admissions_email: "admissions@marianmanor.org",
+        admissions_contact: "Eileen Walsh (Director)",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "CLINICAL_REVIEW",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Requires 3 months bank statements & verification of MassHealth tracking #. Female long-term bed open immediately.",
+        last_contact_date: "2026-03-28",
+        follow_up_date: "2026-04-05",
+        call_logs: [
+          { date: "2026-03-28 14:15", note: "Spoke with Eileen. Confirmed female LTC bed open. SC-1 verification requested." },
+          { date: "2026-03-26 10:00", note: "Initial pre-screen query completed via direct phone." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 2,
+        facility_name: "Hebrew Rehabilitation Center",
+        street_address: "1200 Centre St",
+        city: "Boston",
+        zip: "02131",
+        region: "Greater Boston",
+        ccn: "225014",
+        npi: "1891782291",
+        total_beds: 450,
+        overall_rating: 5,
+        admissions_phone: "(617) 363-8000",
+        admissions_email: "snfadmissions@hsl.harvard.edu",
+        admissions_contact: "Admissions Intake Office",
+        accepts_mh_pending: "CASE_BY_CASE",
+        current_bed_available: "WAITLIST",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: true,
+        has_trach: true,
+        has_wound_vac: true,
+        notes: "Strict financial pre-screening committee meets Tuesdays/Thursdays. Full asset packet required before clinical review.",
+        last_contact_date: "2026-03-15",
+        follow_up_date: "2026-04-07",
+        call_logs: [
+          { date: "2026-03-15 11:30", note: "Left voicemail for central intake coordinator." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 3,
+        facility_name: "Bostonian Nursing Care Center",
+        street_address: "337 Freeport St",
+        city: "Dorchester",
+        zip: "02122",
+        region: "Greater Boston",
+        ccn: "225381",
+        npi: "1235189201",
+        total_beds: 121,
+        overall_rating: 3,
+        admissions_phone: "(617) 265-5600",
+        admissions_email: "intake@bostoniancare.com",
+        admissions_contact: "Marcus Vance",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "PACKET_SENT",
+        requires_asset_prescreen: false,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: false,
+        has_bariatric: true,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Fast review. Needs SC-1 application receipt and signed monthly PPA assignment agreement for Social Security check.",
+        last_contact_date: "2026-04-01",
+        follow_up_date: "2026-04-04",
+        call_logs: [
+          { date: "2026-04-01 09:45", note: "Marcus reviewed chart. Faxed 48-hour clinical packet and PASRR form." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 4,
+        facility_name: "Neville Center at Fresh Pond",
+        street_address: "640 Concord Ave",
+        city: "Cambridge",
+        zip: "02138",
+        region: "Metro North",
+        ccn: "225301",
+        npi: "1679503411",
+        total_beds: 112,
+        overall_rating: 4,
+        admissions_phone: "(617) 497-0600",
+        admissions_email: "admissions@nevillecenter.org",
+        admissions_contact: "Sarah Jenkins, LSW",
+        accepts_mh_pending: "CASE_BY_CASE",
+        current_bed_available: "NO",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: false,
+        notes: "Full for Medicaid pending custodial beds. Sub-acute Medicare short-stay beds available.",
+        last_contact_date: "2026-03-20",
+        follow_up_date: "",
+        call_logs: [
+          { date: "2026-03-20 15:20", note: "Sarah indicated 6-month waitlist for long-term pending beds." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 5,
+        facility_name: "Alliance Health at Braintree",
+        street_address: "175 Grove St",
+        city: "Braintree",
+        zip: "02184",
+        region: "South Shore",
+        ccn: "225240",
+        npi: "1922038102",
+        total_beds: 101,
+        overall_rating: 3,
+        admissions_phone: "(781) 848-2050",
+        admissions_email: "braintree.admissions@alliancehhs.org",
+        admissions_contact: "Kevin O'Connor",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "ACCEPTED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: false,
+        requires_pasrr_level: true,
+        has_memory_care: false,
+        has_bariatric: true,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Offer extended. Awaiting discharge coordinator transport arrangements.",
+        last_contact_date: "2026-04-02",
+        follow_up_date: "2026-04-04",
+        call_logs: [
+          { date: "2026-04-02 16:30", note: "Formal bed offer received. Clinical intake signed by DON." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 6,
+        facility_name: "Quincy Health and Rehabilitation",
+        street_address: "11 Rexford Rd",
+        city: "Quincy",
+        zip: "02169",
+        region: "South Shore",
+        ccn: "225439",
+        npi: "1487622910",
+        total_beds: 128,
+        overall_rating: 2,
+        admissions_phone: "(617) 479-2820",
+        admissions_email: "intake@quincyhealth.com",
+        admissions_contact: "Brenda Davis",
+        accepts_mh_pending: "NO",
+        current_bed_available: "NO",
+        referral_status: "DENIED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: false,
+        requires_pasrr_level: false,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: false,
+        notes: "Strict policy: active approved MassHealth or Medicare Part A only.",
+        last_contact_date: "2026-03-10",
+        follow_up_date: "",
+        call_logs: [],
+        disqualified: true,
+        disqualification_reason: "NO_PENDING_POLICY",
+        disqualified_date: "2026-03-10"
+      },
+      {
+        id: 7,
+        facility_name: "Harborlights Nursing Facility (Historical)",
+        street_address: "804 E 7th St",
+        city: "South Boston",
+        zip: "02127",
+        region: "Greater Boston",
+        ccn: "225199",
+        npi: "1992812929",
+        total_beds: 89,
+        overall_rating: 1,
+        admissions_phone: "(617) 269-5100",
+        admissions_email: "",
+        admissions_contact: "",
+        accepts_mh_pending: "NO",
+        current_bed_available: "NO",
+        referral_status: "DENIED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: false,
+        requires_pasrr_level: false,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: false,
+        notes: "Facility closed in 2018. Superseded by 804 East 7th Street Operator LLC in NPI registry.",
+        last_contact_date: "2018-06-30",
+        follow_up_date: "",
+        call_logs: [],
+        disqualified: true,
+        disqualification_reason: "CLOSED_OR_DEFUNCT",
+        disqualified_date: "2026-01-15"
+      },
+      {
+        id: 8,
+        facility_name: "St. Joseph Manor Health Care",
+        street_address: "215 Thatcher St",
+        city: "Brockton",
+        zip: "02302",
+        region: "South Shore",
+        ccn: "225287",
+        npi: "1831194200",
+        total_beds: 118,
+        overall_rating: 4,
+        admissions_phone: "(508) 583-5834",
+        admissions_email: "admissions@sjmbrockton.com",
+        admissions_contact: "Linda Moreau",
+        accepts_mh_pending: "UNKNOWN",
+        current_bed_available: "UNKNOWN",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: false,
+        requires_pasrr_level: false,
+        has_memory_care: true,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Voicemail left for Admissions Director regarding male custodial bed availability.",
+        last_contact_date: "2026-04-01",
+        follow_up_date: "2026-04-06",
+        call_logs: [
+          { date: "2026-04-01 13:10", note: "Left voicemail for Linda regarding memory care opening." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 9,
+        facility_name: "Sherrill House",
+        street_address: "135 S Huntington Ave",
+        city: "Jamaica Plain",
+        zip: "02130",
+        region: "Greater Boston",
+        ccn: "225140",
+        npi: "1124087192",
+        total_beds: 196,
+        overall_rating: 5,
+        admissions_phone: "(617) 731-2300",
+        admissions_email: "admissions@sherrillhouse.org",
+        admissions_contact: "Diane Doherty",
+        accepts_mh_pending: "CASE_BY_CASE",
+        current_bed_available: "WAITLIST",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Excellent not-for-profit facility. High demand Special Care Dementia unit. Financial review required.",
+        last_contact_date: "2026-03-22",
+        follow_up_date: "2026-04-08",
+        call_logs: [
+          { date: "2026-03-22 10:15", note: "Confirmed 3-6 month waitlist for long-term Medicaid pending beds." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 10,
+        facility_name: "Sancta Maria Nursing Facility",
+        street_address: "799 Concord Ave",
+        city: "Cambridge",
+        zip: "02138",
+        region: "Metro North",
+        ccn: "225184",
+        npi: "1093782194",
+        total_beds: 141,
+        overall_rating: 5,
+        admissions_phone: "(617) 868-6780",
+        admissions_email: "intake@sanctamaria.org",
+        admissions_contact: "Rachel Adams",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "CLINICAL_REVIEW",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: true,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Accepts pending with completed SC-1 document tracking & signed PPA. 1 male semi-private bed currently available.",
+        last_contact_date: "2026-04-02",
+        follow_up_date: "2026-04-05",
+        call_logs: [
+          { date: "2026-04-02 11:30", note: "Rachel confirmed intake committee reviewing financial package." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 11,
+        facility_name: "Marina Bay Skilled Nursing and Rehabilitation",
+        street_address: "2 thruston St",
+        city: "Quincy",
+        zip: "02171",
+        region: "South Shore",
+        ccn: "225520",
+        npi: "1558392019",
+        total_beds: 167,
+        overall_rating: 4,
+        admissions_phone: "(617) 769-5100",
+        admissions_email: "marinabay.admissions@banecare.com",
+        admissions_contact: "Courtney Hall",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "PACKET_SENT",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: true,
+        has_trach: true,
+        has_wound_vac: true,
+        notes: "High acuity capabilities. Accepts pending with 3-month asset disclosure. Quick 24-hr turnaround.",
+        last_contact_date: "2026-04-03",
+        follow_up_date: "2026-04-05",
+        call_logs: [
+          { date: "2026-04-03 09:10", note: "Direct referral faxed with MAR and PASRR Level 1 screen." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 12,
+        facility_name: "Don Orione Home / East Boston Rehab",
+        street_address: "111 Orient Ave",
+        city: "East Boston",
+        zip: "02128",
+        region: "Greater Boston",
+        ccn: "225133",
+        npi: "1780693481",
+        total_beds: 190,
+        overall_rating: 3,
+        admissions_phone: "(617) 569-2100",
+        admissions_email: "admissions@donorionehome.org",
+        admissions_contact: "Anthony Falcone",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "CLINICAL_REVIEW",
+        requires_asset_prescreen: false,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Great community facility. Open to active MassHealth pending intakes. Female dementia bed open.",
+        last_contact_date: "2026-04-01",
+        follow_up_date: "2026-04-06",
+        call_logs: [
+          { date: "2026-04-01 14:00", note: "Sent face sheet and SC-1 verification number." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 13,
+        facility_name: "CareOne at Brookline",
+        street_address: "99 Park St",
+        city: "Brookline",
+        zip: "02446",
+        region: "Greater Boston",
+        ccn: "225490",
+        npi: "1639105821",
+        total_beds: 120,
+        overall_rating: 3,
+        admissions_phone: "(617) 731-1050",
+        admissions_email: "brooklineadmissions@care-one.com",
+        admissions_contact: "Patricia Lee",
+        accepts_mh_pending: "NO",
+        current_bed_available: "NO",
+        referral_status: "DENIED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: false,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Requires minimum 6-month private pay spenddown before converting to MassHealth.",
+        last_contact_date: "2026-03-12",
+        follow_up_date: "",
+        call_logs: [],
+        disqualified: true,
+        disqualification_reason: "FINANCIAL_BARRIER",
+        disqualified_date: "2026-03-12"
+      },
+      {
+        id: 14,
+        facility_name: "Courtyard Nursing Care Center",
+        street_address: "200 Governors Ave",
+        city: "Medford",
+        zip: "02155",
+        region: "Metro North",
+        ccn: "225310",
+        npi: "1841295018",
+        total_beds: 224,
+        overall_rating: 3,
+        admissions_phone: "(781) 391-5400",
+        admissions_email: "intake@courtyardcare.com",
+        admissions_contact: "Jessica Taylor",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: true,
+        has_trach: true,
+        has_wound_vac: true,
+        notes: "Large regional SNF with dedicated respiratory & ventilator floor. Accepts pending with valid tracking.",
+        last_contact_date: "2026-03-29",
+        follow_up_date: "2026-04-05",
+        call_logs: [
+          { date: "2026-03-29 16:15", note: "Beds open in both general LTC and subacute rehab." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 15,
+        facility_name: "Glen Ridge Nursing Care Center",
+        street_address: "120 Glen Ridge Rd",
+        city: "Medford",
+        zip: "02155",
+        region: "Metro North",
+        ccn: "225402",
+        npi: "1356492011",
+        total_beds: 140,
+        overall_rating: 2,
+        admissions_phone: "(781) 391-0800",
+        admissions_email: "admissions@glenridgecare.org",
+        admissions_contact: "Robert Stone",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: false,
+        requires_pasrr_level: true,
+        has_memory_care: false,
+        has_bariatric: true,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Quick turnaround on custodial placement. Accepts pending immediately upon PPA signature.",
+        last_contact_date: "2026-04-01",
+        follow_up_date: "2026-04-06",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 16,
+        facility_name: "Belmont Manor Nursing Center",
+        street_address: "34 Agassiz Ave",
+        city: "Belmont",
+        zip: "02478",
+        region: "Metro West",
+        ccn: "225215",
+        npi: "1932185721",
+        total_beds: 155,
+        overall_rating: 5,
+        admissions_phone: "(617) 489-1200",
+        admissions_email: "intake@belmontmanor.com",
+        admissions_contact: "Mary Kiley",
+        accepts_mh_pending: "CASE_BY_CASE",
+        current_bed_available: "WAITLIST",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Family-run, top-rated memory care SNF. Medicaid pending evaluated strictly case-by-case.",
+        last_contact_date: "2026-03-24",
+        follow_up_date: "2026-04-10",
+        call_logs: [
+          { date: "2026-03-24 11:00", note: "Spoke with Mary; currently 8 on waitlist for custodial dementia beds." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 17,
+        facility_name: "CareOne at Concord",
+        street_address: "57 Old Road to Nine Acre Corner",
+        city: "Concord",
+        zip: "01742",
+        region: "Metro West",
+        ccn: "225370",
+        npi: "1467592810",
+        total_beds: 135,
+        overall_rating: 4,
+        admissions_phone: "(978) 369-5155",
+        admissions_email: "concordadmissions@care-one.com",
+        admissions_contact: "Karen Sullivan",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "CLINICAL_REVIEW",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: true,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Accepts MassHealth pending with completed MEC (MassHealth Eligibility Center) intake submission.",
+        last_contact_date: "2026-04-02",
+        follow_up_date: "2026-04-06",
+        call_logs: [
+          { date: "2026-04-02 15:30", note: "Chart sent for nursing evaluation. 1 male semi-private bed open." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 18,
+        facility_name: "Salter Healthcare - Winchester Rehabilitation",
+        street_address: "223 Swanton St",
+        city: "Winchester",
+        zip: "01890",
+        region: "Metro North",
+        ccn: "225180",
+        npi: "1285791024",
+        total_beds: 120,
+        overall_rating: 4,
+        admissions_phone: "(781) 729-9595",
+        admissions_email: "admissions@salterhealthcare.com",
+        admissions_contact: "Brian MacLean",
+        accepts_mh_pending: "CASE_BY_CASE",
+        current_bed_available: "WAITLIST",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Heavy subacute rehab focus. Long-term Medicaid pending admissions scrutinized for asset transfer history.",
+        last_contact_date: "2026-03-27",
+        follow_up_date: "",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 19,
+        facility_name: "Woburn Nursing Center",
+        street_address: "18 Frances St",
+        city: "Woburn",
+        zip: "01801",
+        region: "Metro North",
+        ccn: "225265",
+        npi: "1679502918",
+        total_beds: 104,
+        overall_rating: 3,
+        admissions_phone: "(781) 935-3737",
+        admissions_email: "woburnadmissions@salterhealthcare.com",
+        admissions_contact: "Jennifer Walsh",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: false,
+        has_bariatric: true,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Accommodates bariatric patients and complex wound care. Open LTC bed ready for review.",
+        last_contact_date: "2026-03-31",
+        follow_up_date: "2026-04-06",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 20,
+        facility_name: "Blueberry Hill Rehabilitation and Healthcare",
+        street_address: "75 Brimbal Ave",
+        city: "Beverly",
+        zip: "01915",
+        region: "North Shore",
+        ccn: "225345",
+        npi: "1720194851",
+        total_beds: 132,
+        overall_rating: 3,
+        admissions_phone: "(978) 927-2020",
+        admissions_email: "intake@blueberryhillrehab.com",
+        admissions_contact: "Danielle Murphy",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: true,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Serves North Shore and Essex County. Memory Care unit has immediate female vacancy.",
+        last_contact_date: "2026-04-01",
+        follow_up_date: "2026-04-07",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 21,
+        facility_name: "Jesmond Nursing Home",
+        street_address: "271 Nahant Rd",
+        city: "Nahant",
+        zip: "01908",
+        region: "North Shore",
+        ccn: "225211",
+        npi: "1891783021",
+        total_beds: 58,
+        overall_rating: 4,
+        admissions_phone: "(781) 581-0420",
+        admissions_email: "admissions@jesmondnursing.com",
+        admissions_contact: "Helena Gould",
+        accepts_mh_pending: "UNKNOWN",
+        current_bed_available: "NO",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: false,
+        requires_pasrr_level: true,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: false,
+        notes: "Small boutique facility by the ocean. Zero bed openings currently.",
+        last_contact_date: "2026-03-18",
+        follow_up_date: "",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 22,
+        facility_name: "CareOne at Weymouth",
+        street_address: "64 Performance Dr",
+        city: "Weymouth",
+        zip: "02189",
+        region: "South Shore",
+        ccn: "225501",
+        npi: "1659482012",
+        total_beds: 154,
+        overall_rating: 3,
+        admissions_phone: "(781) 682-7700",
+        admissions_email: "weymouthadmissions@care-one.com",
+        admissions_contact: "Stephanie Ross",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "PACKET_SENT",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: true,
+        has_trach: true,
+        has_wound_vac: true,
+        notes: "Direct liaison with South Shore Hospital. Rapid clinical review team.",
+        last_contact_date: "2026-04-02",
+        follow_up_date: "2026-04-05",
+        call_logs: [
+          { date: "2026-04-02 12:45", note: "Sent packet to Stephanie Ross. Requested review of IV medication needs." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 23,
+        facility_name: "South Shore Rehabilitation & Skilled Care",
+        street_address: "1153 Main St",
+        city: "Rockland",
+        zip: "02370",
+        region: "South Shore",
+        ccn: "225330",
+        npi: "1487691823",
+        total_beds: 104,
+        overall_rating: 4,
+        admissions_phone: "(781) 878-3336",
+        admissions_email: "admissions@southshorerehab.com",
+        admissions_contact: "Gregory Paul",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "ACCEPTED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: false,
+        has_bariatric: true,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Offer extended for male long-term care bed. Awaiting transportation clearance.",
+        last_contact_date: "2026-04-03",
+        follow_up_date: "2026-04-04",
+        call_logs: [
+          { date: "2026-04-03 14:10", note: "Accepted! Bed 214-B designated." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 24,
+        facility_name: "Ellis Nursing and Rehabilitation Center",
+        street_address: "135 Ellis Ave",
+        city: "Norwood",
+        zip: "02062",
+        region: "South Shore",
+        ccn: "225175",
+        npi: "1124095810",
+        total_beds: 120,
+        overall_rating: 4,
+        admissions_phone: "(781) 762-6880",
+        admissions_email: "intake@ellisrehab.com",
+        admissions_contact: "Carolyn Vance",
+        accepts_mh_pending: "CASE_BY_CASE",
+        current_bed_available: "WAITLIST",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Well established South Shore facility. BOM requires verification of bank spenddown below $2,000 asset limit.",
+        last_contact_date: "2026-03-25",
+        follow_up_date: "2026-04-09",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 25,
+        facility_name: "Walpole Healthcare",
+        street_address: "160 Robbins Rd",
+        city: "Walpole",
+        zip: "02081",
+        region: "South Shore",
+        ccn: "225418",
+        npi: "1386792018",
+        total_beds: 90,
+        overall_rating: 3,
+        admissions_phone: "(508) 668-3410",
+        admissions_email: "walpole.admissions@nextstephc.com",
+        admissions_contact: "Debra Collins",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Cooperative admissions team. Open to immediate admission with verified PPA agreement.",
+        last_contact_date: "2026-04-02",
+        follow_up_date: "2026-04-07",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 26,
+        facility_name: "Presentation Rehabilitation and Skilled Care",
+        street_address: "10 Chestnut Hill Ave",
+        city: "Brighton",
+        zip: "02135",
+        region: "Greater Boston",
+        ccn: "225255",
+        npi: "1942385011",
+        total_beds: 122,
+        overall_rating: 3,
+        admissions_phone: "(617) 782-8113",
+        admissions_email: "intake@presentationrehab.com",
+        admissions_contact: "Sister Grace / Admissions",
+        accepts_mh_pending: "YES",
+        current_bed_available: "WAITLIST",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: false,
+        notes: "Located near St. Elizabeth's Medical Center. Active Medicaid pending intake roster.",
+        last_contact_date: "2026-03-28",
+        follow_up_date: "2026-04-08",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 27,
+        facility_name: "Parkway Health and Rehabilitation Center",
+        street_address: "1195 Centre St",
+        city: "West Roxbury",
+        zip: "02132",
+        region: "Greater Boston",
+        ccn: "225360",
+        npi: "1821094821",
+        total_beds: 153,
+        overall_rating: 2,
+        admissions_phone: "(617) 325-1550",
+        admissions_email: "parkway.intake@banecare.com",
+        admissions_contact: "Tamara Brooks",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "CLINICAL_REVIEW",
+        requires_asset_prescreen: false,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: true,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Specializes in complex psychiatric and behavioral co-morbidities. Memory unit open.",
+        last_contact_date: "2026-04-01",
+        follow_up_date: "2026-04-05",
+        call_logs: [
+          { date: "2026-04-01 15:40", note: "Tamara requested psych eval notes and updated MAR." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 28,
+        facility_name: "Saint Francis Rehabilitation and Nursing Center",
+        street_address: "101 Plantation St",
+        city: "Worcester",
+        zip: "01604",
+        region: "Central MA",
+        ccn: "225170",
+        npi: "1598792013",
+        total_beds: 142,
+        overall_rating: 4,
+        admissions_phone: "(508) 755-8605",
+        admissions_email: "admissions@saintfrancisrehab.com",
+        admissions_contact: "Michelle Cote",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: true,
+        has_trach: true,
+        has_wound_vac: true,
+        notes: "Central MA regional referral facility. Excellent ventilator and pulmonary rehabilitation floor.",
+        last_contact_date: "2026-04-02",
+        follow_up_date: "2026-04-07",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 29,
+        facility_name: "Beaumont Rehabilitation and Skilled Nursing Center",
+        street_address: "378 Plantation St",
+        city: "Worcester",
+        zip: "01605",
+        region: "Central MA",
+        ccn: "225460",
+        npi: "1760492819",
+        total_beds: 164,
+        overall_rating: 4,
+        admissions_phone: "(508) 755-7300",
+        admissions_email: "beaumontadmissions@salmonhealth.com",
+        admissions_contact: "Karen Belanger",
+        accepts_mh_pending: "CASE_BY_CASE",
+        current_bed_available: "WAITLIST",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "High quality SALMON Health facility. Tapestry memory care unit has 2-month waiting period.",
+        last_contact_date: "2026-03-26",
+        follow_up_date: "2026-04-10",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 30,
+        facility_name: "Newton-Wellesley Center for Rehabilitation",
+        street_address: "694 Worcester Rd",
+        city: "Wellesley",
+        zip: "02482",
+        region: "Metro West",
+        ccn: "225482",
+        npi: "1649281029",
+        total_beds: 110,
+        overall_rating: 5,
+        admissions_phone: "(781) 237-6400",
+        admissions_email: "admissions@nwrehabcenter.com",
+        admissions_contact: "Susan McCarthy",
+        accepts_mh_pending: "NO",
+        current_bed_available: "NO",
+        referral_status: "DENIED",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: false,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Strict Medicare sub-acute rehab facility only. Does not take long-term MassHealth pending residents.",
+        last_contact_date: "2026-03-14",
+        follow_up_date: "",
+        call_logs: [],
+        disqualified: true,
+        disqualification_reason: "NO_PENDING_POLICY",
+        disqualified_date: "2026-03-14"
+      },
+      {
+        id: 31,
+        facility_name: "Carlyle House",
+        street_address: "342 Winter St",
+        city: "Framingham",
+        zip: "01702",
+        region: "Metro West",
+        ccn: "225390",
+        npi: "1851492019",
+        total_beds: 64,
+        overall_rating: 4,
+        admissions_phone: "(508) 879-6100",
+        admissions_email: "intake@carlylehouse.biz",
+        admissions_contact: "Elena Gomez",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "NOT_STARTED",
+        requires_asset_prescreen: false,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Intimate 64-bed facility. Accepts pending with verifiable social security assignment.",
+        last_contact_date: "2026-04-01",
+        follow_up_date: "2026-04-06",
+        call_logs: [],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      },
+      {
+        id: 32,
+        facility_name: "Life Care Center of Raynham",
+        street_address: "546 South St E",
+        city: "Raynham",
+        zip: "02767",
+        region: "South Shore",
+        ccn: "225471",
+        npi: "1952384019",
+        total_beds: 152,
+        overall_rating: 4,
+        admissions_phone: "(508) 821-5700",
+        admissions_email: "raynham_admissions@lcca.com",
+        admissions_contact: "Joshua Silva",
+        accepts_mh_pending: "YES",
+        current_bed_available: "YES",
+        referral_status: "CLINICAL_REVIEW",
+        requires_asset_prescreen: true,
+        requires_app_receipt: true,
+        requires_pasrr_level: true,
+        has_memory_care: true,
+        has_bariatric: true,
+        has_trach: false,
+        has_wound_vac: true,
+        notes: "Full clinical campus. Fast admissions turnaround. Male and female LTC beds open.",
+        last_contact_date: "2026-04-02",
+        follow_up_date: "2026-04-05",
+        call_logs: [
+          { date: "2026-04-02 10:20", note: "Joshua reviewing medical history and therapy discharge summary." }
+        ],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      }
+    ];
+
+    const DISQUALIFICATION_REASONS = {
+      NO_PENDING_POLICY: { label: "Strict No-Pending Policy", badge: "bg-rose-100 text-rose-800 border-rose-300" },
+      CLOSED_OR_DEFUNCT: { label: "Permanently Closed / Defunct", badge: "bg-gray-200 text-gray-800 border-gray-400" },
+      CLINICAL_MISMATCH: { label: "Clinical Level Mismatch (Memory/Trach/Bariatric)", badge: "bg-orange-100 text-orange-800 border-orange-300" },
+      NO_BEDS_INDEFINITE: { label: "Zero Beds / Indefinite Waitlist", badge: "bg-blue-100 text-blue-800 border-blue-300" },
+      FINANCIAL_BARRIER: { label: "Demands Private Pay Upfront / Screen Fail", badge: "bg-amber-100 text-amber-800 border-amber-300" },
+      UNRESPONSIVE_CONTACT: { label: "Bad Number / Unresponsive Admissions", badge: "bg-slate-100 text-slate-800 border-slate-300" }
+    };
+
+    let facilities = [];
+    try {
+      const saved = localStorage.getItem('masshealth_snf_data_v5');
+      facilities = saved ? JSON.parse(saved) : [...INITIAL_FACILITIES];
+    } catch (e) {
+      facilities = [...INITIAL_FACILITIES];
+    }
+
+    let selectedFacilityId = facilities[0]?.id || 1;
+    let currentTab = 'ACTIVE';
+    let currentPendingFilter = 'ALL';
+    let currentBedFilter = 'ALL';
+    let currentMemoryFilter = false;
+    let currentCityFilter = 'ALL';
+    let currentSort = 'DEFAULT';
+    let currentSearchText = '';
+    let selectedCheckboxIds = new Set();
+    let modalTargetFacilityId = null;
+    let temporaryNpiImportData = null;
+
+    function saveState() {
+      try {
+        localStorage.setItem('masshealth_snf_data_v5', JSON.stringify(facilities));
+      } catch (e) {
+        console.warn('LocalStorage unavailable', e);
+      }
+    }
+
+    function resetToFullDirectory() {
+      facilities = JSON.parse(JSON.stringify(INITIAL_FACILITIES));
+      selectedFacilityId = facilities[0]?.id || 1;
+      selectedCheckboxIds.clear();
+      saveState();
+      populateCityFilter();
+      updateMetrics();
+      selectFacility(selectedFacilityId);
+      showToast(`Loaded complete database: ${facilities.length} Massachusetts facilities!`);
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toastNotification');
+      const text = document.getElementById('toastText');
+      text.textContent = message;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3200);
+    }
+
+    function populateCityFilter() {
+      const citySelect = document.getElementById('citySelect');
+      const currentVal = citySelect.value;
+      const uniqueCities = Array.from(new Set(facilities.map(f => f.city))).sort();
+      citySelect.innerHTML = '<option value="ALL">All Municipalities</option>';
+      uniqueCities.forEach(city => {
+        const opt = document.createElement('option');
+        opt.value = city;
+        opt.textContent = city;
+        citySelect.appendChild(opt);
+      });
+      if (uniqueCities.includes(currentVal)) {
+        citySelect.value = currentVal;
+      }
+    }
+
+    function updateMetrics() {
+      const active = facilities.filter(f => !f.disqualified);
+      const disqualified = facilities.filter(f => f.disqualified);
+
+      document.getElementById('metricActiveQueue').textContent = active.length;
+      document.getElementById('metricPendingYes').textContent = active.filter(f => f.accepts_mh_pending === 'YES').length;
+      document.getElementById('metricBedsOpen').textContent = active.filter(f => f.current_bed_available === 'YES').length;
+      document.getElementById('metricActiveReviews').textContent = active.filter(f => ['PACKET_SENT', 'CLINICAL_REVIEW', 'FINANCIAL_REVIEW', 'ACCEPTED'].includes(f.referral_status)).length;
+      document.getElementById('metricDisqualified').textContent = disqualified.length;
+
+      document.getElementById('tabCountActive').textContent = active.length;
+      document.getElementById('tabCountDisqualified').textContent = disqualified.length;
+      document.getElementById('tabCountAll').textContent = facilities.length;
+    }
+
+    function getFilteredFacilities() {
+      let filtered = facilities.filter(f => {
+        if (currentTab === 'ACTIVE' && f.disqualified) return false;
+        if (currentTab === 'DISQUALIFIED' && !f.disqualified) return false;
+
+        if (currentCityFilter !== 'ALL' && f.city !== currentCityFilter) return false;
+        if (currentPendingFilter !== 'ALL' && f.accepts_mh_pending !== currentPendingFilter) return false;
+        if (currentBedFilter !== 'ALL' && f.current_bed_available !== currentBedFilter) return false;
+        if (currentMemoryFilter && !f.has_memory_care) return false;
+
+        if (currentSearchText.trim()) {
+          const q = currentSearchText.toLowerCase();
+          const matchName = f.facility_name.toLowerCase().includes(q);
+          const matchCity = f.city.toLowerCase().includes(q);
+          const matchNotes = (f.notes || '').toLowerCase().includes(q);
+          const matchNpi = (f.npi || '').includes(q);
+          const matchCcn = (f.ccn || '').includes(q);
+          if (!matchName && !matchCity && !matchNotes && !matchNpi && !matchCcn) return false;
+        }
+
+        return true;
+      });
+
+      if (currentSort === 'RATING_DESC') {
+        filtered.sort((a, b) => (b.overall_rating || 0) - (a.overall_rating || 0));
+      } else if (currentSort === 'NAME_ASC') {
+        filtered.sort((a, b) => a.facility_name.localeCompare(b.facility_name));
+      } else if (currentSort === 'BEDS_DESC') {
+        filtered.sort((a, b) => (b.total_beds || 0) - (a.total_beds || 0));
+      } else if (currentSort === 'RECENT_CONTACT') {
+        filtered.sort((a, b) => (b.last_contact_date || '').localeCompare(a.last_contact_date || ''));
+      }
+
+      return filtered;
+    }
+
+    function renderFacilitiesList() {
+      const container = document.getElementById('facilitiesListContainer');
+      const filtered = getFilteredFacilities();
+      container.innerHTML = '';
+
+      document.getElementById('rosterHeaderLabel').textContent = 
+        currentTab === 'DISQUALIFIED' ? `ELIMINATED ARCHIVE (${filtered.length})` :
+        currentTab === 'ACTIVE' ? `ACTIVE TRIAGE ROSTER (${filtered.length})` :
+        `ALL FACILITIES (${filtered.length})`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-slate-400 text-xs">
+            ${currentTab === 'DISQUALIFIED' ? 'No eliminated facilities in archive.' : 'No facilities match current filter criteria.'}
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach(fac => {
+        const isSelected = fac.id === selectedFacilityId;
+        const row = document.createElement('div');
+        row.className = `p-3.5 transition cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+          fac.disqualified ? 'bg-slate-50/70 opacity-85' : ''
+        } ${isSelected ? 'bg-blue-50/90 border-l-4 border-blue-600 pl-3' : 'hover:bg-slate-50'}`;
+
+        const disqInfo = fac.disqualification_reason ? DISQUALIFICATION_REASONS[fac.disqualification_reason] : null;
+
+        let pendingBadgeClass = 'bg-slate-100 text-slate-600';
+        let pendingText = 'Pending: ?';
+        if (fac.accepts_mh_pending === 'YES') {
+          pendingBadgeClass = 'bg-emerald-100 text-emerald-800';
+          pendingText = 'MH Pending: YES';
+        } else if (fac.accepts_mh_pending === 'CASE_BY_CASE') {
+          pendingBadgeClass = 'bg-amber-100 text-amber-800';
+          pendingText = 'Case-by-Case';
+        } else if (fac.accepts_mh_pending === 'NO') {
+          pendingBadgeClass = 'bg-rose-100 text-rose-800';
+          pendingText = 'MH Pending: NO';
+        }
+
+        let bedBadgeClass = 'bg-slate-100 text-slate-500';
+        let bedText = 'Bed: ?';
+        if (fac.current_bed_available === 'YES') {
+          bedBadgeClass = 'bg-green-100 text-green-700';
+          bedText = 'Bed Open';
+        } else if (fac.current_bed_available === 'WAITLIST') {
+          bedBadgeClass = 'bg-blue-100 text-blue-700';
+          bedText = 'Waitlist';
+        } else if (fac.current_bed_available === 'NO') {
+          bedBadgeClass = 'bg-gray-100 text-gray-500';
+          bedText = 'No Beds';
+        }
+
+        const referralMap = {
+          NOT_STARTED: { label: "Not Started", color: "bg-slate-100 text-slate-600" },
+          PACKET_SENT: { label: "Packet Sent", color: "bg-indigo-100 text-indigo-700" },
+          CLINICAL_REVIEW: { label: "Clinical Review", color: "bg-purple-100 text-purple-700" },
+          FINANCIAL_REVIEW: { label: "BOM Review", color: "bg-amber-100 text-amber-700" },
+          ACCEPTED: { label: "Accepted!", color: "bg-emerald-100 text-emerald-800 font-bold" },
+          DENIED: { label: "Denied", color: "bg-rose-100 text-rose-700" }
+        };
+        const refInfo = referralMap[fac.referral_status] || referralMap.NOT_STARTED;
+
+        row.innerHTML = `
+          <div class="space-y-1 flex-1">
+            <div class="flex items-center space-x-2">
+              <input type="checkbox" data-id="${fac.id}" class="facility-checkbox rounded text-rose-600 focus:ring-rose-500 h-3.5 w-3.5" ${selectedCheckboxIds.has(fac.id) ? 'checked' : ''}>
+              <span class="font-bold text-xs sm:text-sm ${fac.disqualified ? 'line-through text-slate-500' : 'text-slate-900'}">${fac.facility_name}</span>
+              <span class="text-[11px] text-amber-500 font-semibold" title="CMS Rating: ${fac.overall_rating} Stars">
+                ${'★'.repeat(fac.overall_rating || 3)}${'☆'.repeat(5 - (fac.overall_rating || 3))}
+              </span>
+            </div>
+
+            <div class="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-2">
+              <span>${fac.city}, MA ${fac.zip}</span>
+              ${fac.region ? `<span class="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded text-[9px] font-medium">${fac.region}</span>` : ''}
+              <span>•</span>
+              <span class="font-mono text-slate-700 font-medium">${fac.admissions_phone || 'No phone'}</span>
+              <span>•</span>
+              <span>${fac.total_beds || 0} Beds</span>
+              ${fac.has_memory_care ? '<span class="bg-purple-100 text-purple-800 px-1.5 py-0.2 rounded text-[9px] font-bold">Memory</span>' : ''}
+              ${fac.has_bariatric ? '<span class="bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded text-[9px] font-bold">Bariatric</span>' : ''}
+              ${fac.has_trach ? '<span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded text-[9px] font-bold">Trach/Vent</span>' : ''}
+              ${fac.follow_up_date ? `<span class="bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded text-[9px] font-medium">Follow-up: ${fac.follow_up_date}</span>` : ''}
+            </div>
+
+            ${fac.disqualified ? `
+              <div class="pt-0.5 flex items-center space-x-2">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded border ${disqInfo ? disqInfo.badge : 'bg-rose-100 text-rose-800 border-rose-300'}">
+                  ✕ Eliminated: ${disqInfo ? disqInfo.label : fac.disqualification_reason}
+                </span>
+                <span class="text-[10px] text-slate-400">(${fac.disqualified_date})</span>
+              </div>
+            ` : `
+              ${fac.notes ? `<p class="text-[11px] text-slate-600 line-clamp-1 italic pt-0.5">"${fac.notes}"</p>` : ''}
+            `}
+          </div>
+
+          <div class="flex sm:flex-col items-end justify-between gap-1 flex-shrink-0">
+            ${fac.disqualified ? `
+              <button type="button" data-restore-id="${fac.id}" class="restore-btn px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition">
+                ↺ Re-Qualify
+              </button>
+            ` : `
+              <div class="flex items-center space-x-1.5">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${pendingBadgeClass}">${pendingText}</span>
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${bedBadgeClass}">${bedText}</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${refInfo.color}">${refInfo.label}</span>
+                <button type="button" data-disqualify-id="${fac.id}" class="single-disqualify-trigger text-[10px] text-rose-600 hover:text-rose-800 font-semibold hover:underline">
+                  ✕ Eliminate
+                </button>
+              </div>
+            `}
+          </div>
+        `;
+
+        row.addEventListener('click', (e) => {
+          if (e.target.closest('input[type="checkbox"]') || e.target.closest('button')) return;
+          selectFacility(fac.id);
+        });
+
+        const checkbox = row.querySelector('.facility-checkbox');
+        checkbox.addEventListener('change', (e) => {
+          e.stopPropagation();
+          if (e.target.checked) selectedCheckboxIds.add(fac.id);
+          else selectedCheckboxIds.delete(fac.id);
+          updateSelectedCountLabel();
+        });
+
+        const disqBtn = row.querySelector('.single-disqualify-trigger');
+        if (disqBtn) {
+          disqBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openDisqualifyModal(fac.id);
+          });
+        }
+
+        const restoreBtn = row.querySelector('.restore-btn');
+        if (restoreBtn) {
+          restoreBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            restoreFacility(fac.id);
+          });
+        }
+
+        container.appendChild(row);
+      });
+    }
+
+    function selectFacility(id) {
+      selectedFacilityId = id;
+      const fac = facilities.find(f => f.id === id) || facilities[0];
+      if (!fac) return;
+
+      document.getElementById('intakeFacilityName').textContent = fac.facility_name;
+      document.getElementById('intakeFacilityAddress').textContent = 
+        `${fac.street_address}, ${fac.city}, MA ${fac.zip} | CCN: ${fac.ccn || '—'} | NPI: ${fac.npi || '—'}`;
+
+      document.getElementById('cmsRatingBadge').textContent = '★'.repeat(fac.overall_rating || 3) + ' ' + (fac.overall_rating || 3) + ' Stars';
+
+      const rawPhone = (fac.admissions_phone || '').replace(/\D/g, '');
+      document.getElementById('intakeCallLink').href = rawPhone ? `tel:${rawPhone}` : '#';
+
+      const disqBadge = document.getElementById('intakeDisqualifiedBadge');
+      const fastBar = document.getElementById('fastDisqualifyBar');
+      if (fac.disqualified) {
+        disqBadge.classList.remove('hidden');
+        fastBar.classList.add('hidden');
+      } else {
+        disqBadge.classList.add('hidden');
+        fastBar.classList.remove('hidden');
+      }
+
+      // Update question 1 buttons
+      document.querySelectorAll('.pending-btn').forEach(btn => {
+        const val = btn.getAttribute('data-val');
+        if (val === fac.accepts_mh_pending) {
+          btn.className = 'pending-btn py-1.5 px-2 text-center rounded-lg border font-bold shadow-xs ring-2 ring-blue-500 bg-blue-50 text-blue-900 border-blue-400';
+        } else {
+          btn.className = 'pending-btn py-1.5 px-2 text-center rounded-lg border font-medium text-slate-700 border-slate-200 hover:bg-slate-50 transition';
+        }
+      });
+
+      // Update question 2 buttons
+      document.querySelectorAll('.bed-btn').forEach(btn => {
+        const val = btn.getAttribute('data-bed');
+        if (val === fac.current_bed_available) {
+          btn.className = 'bed-btn py-1.5 px-1 rounded-lg border text-center font-bold ring-2 ring-blue-500 bg-blue-50 text-blue-900 border-blue-400';
+        } else {
+          btn.className = 'bed-btn py-1.5 px-1 rounded-lg border text-center font-medium text-slate-700 border-slate-200 hover:bg-slate-50 transition';
+        }
+      });
+
+      // Checkboxes & inputs
+      document.getElementById('checkAssetPrescreen').checked = !!fac.requires_asset_prescreen;
+      document.getElementById('checkAppReceipt').checked = !!fac.requires_app_receipt;
+      document.getElementById('checkPasrrLevel').checked = !!fac.requires_pasrr_level;
+      document.getElementById('checkMemoryCare').checked = !!fac.has_memory_care;
+      document.getElementById('checkBariatric').checked = !!fac.has_bariatric;
+      document.getElementById('checkTrach').checked = !!fac.has_trach;
+      document.getElementById('checkWoundVac').checked = !!fac.has_wound_vac;
+
+      document.getElementById('inputContactName').value = fac.admissions_contact || '';
+      document.getElementById('inputContactEmail').value = fac.admissions_email || '';
+      document.getElementById('selectReferralStatus').value = fac.referral_status || 'NOT_STARTED';
+      document.getElementById('inputFollowUpDate').value = fac.follow_up_date || '';
+      document.getElementById('inputNotes').value = fac.notes || '';
+
+      renderCallLogs(fac);
+      renderFacilitiesList();
+    }
+
+    function renderCallLogs(fac) {
+      const logContainer = document.getElementById('callLogTimeline');
+      logContainer.innerHTML = '';
+      const logs = fac.call_logs || [];
+      if (logs.length === 0) {
+        logContainer.innerHTML = '<span class="text-slate-400 italic">No contact entries logged yet.</span>';
+        return;
+      }
+      logs.forEach(log => {
+        const div = document.createElement('div');
+        div.className = 'bg-white p-1.5 rounded border border-slate-200 text-slate-700';
+        div.innerHTML = `<span class="font-mono text-slate-400 font-medium">${log.date}:</span> ${log.note}`;
+        logContainer.appendChild(div);
+      });
+    }
+
+    document.getElementById('intakeForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      saveCurrentIntakeForm();
+    });
+
+    function saveCurrentIntakeForm() {
+      const fac = facilities.find(f => f.id === selectedFacilityId);
+      if (!fac) return;
+
+      fac.admissions_contact = document.getElementById('inputContactName').value;
+      fac.admissions_email = document.getElementById('inputContactEmail').value;
+      fac.referral_status = document.getElementById('selectReferralStatus').value;
+      fac.follow_up_date = document.getElementById('inputFollowUpDate').value;
+      fac.notes = document.getElementById('inputNotes').value;
+      fac.requires_asset_prescreen = document.getElementById('checkAssetPrescreen').checked;
+      fac.requires_app_receipt = document.getElementById('checkAppReceipt').checked;
+      fac.requires_pasrr_level = document.getElementById('checkPasrrLevel').checked;
+      fac.has_memory_care = document.getElementById('checkMemoryCare').checked;
+      fac.has_bariatric = document.getElementById('checkBariatric').checked;
+      fac.has_trach = document.getElementById('checkTrach').checked;
+      fac.has_wound_vac = document.getElementById('checkWoundVac').checked;
+      fac.last_contact_date = new Date().toISOString().split('T')[0];
+
+      saveState();
+      showToast(`Saved intake record for ${fac.facility_name}!`);
+      updateMetrics();
+      renderFacilitiesList();
+    }
+
+    document.getElementById('addQuickCallLogBtn').addEventListener('click', () => {
+      const fac = facilities.find(f => f.id === selectedFacilityId);
+      if (!fac) return;
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10) + ' ' + now.toTimeString().slice(0, 5);
+      const logText = prompt('Enter brief admissions contact note:', 'Left voicemail with admissions coordinator regarding pending LTC bed.');
+      if (logText && logText.trim()) {
+        fac.call_logs = fac.call_logs || [];
+        fac.call_logs.unshift({ date: dateStr, note: logText.trim() });
+        fac.last_contact_date = now.toISOString().split('T')[0];
+        saveState();
+        renderCallLogs(fac);
+        showToast('Logged contact note.');
+      }
+    });
+
+    function openDisqualifyModal(facilityId) {
+      modalTargetFacilityId = facilityId;
+      const fac = facilities.find(f => f.id === facilityId);
+      if (!fac) return;
+
+      document.getElementById('disqualifyModalFacilityName').textContent = fac.facility_name;
+      document.getElementById('disqualifyAuditNotes').value = '';
+
+      const radioContainer = document.getElementById('disqualificationRadioGroup');
+      radioContainer.innerHTML = '';
+      Object.entries(DISQUALIFICATION_REASONS).forEach(([key, item], index) => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center space-x-2.5 p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer transition';
+        label.innerHTML = `
+          <input type="radio" name="disqualifyReason" value="${key}" ${index === 0 ? 'checked' : ''} class="text-rose-600 focus:ring-rose-500">
+          <span class="text-xs">${item.label}</span>
+        `;
+        radioContainer.appendChild(label);
+      });
+
+      document.getElementById('disqualifyModal').classList.remove('hidden');
+    }
+
+    function confirmDisqualification() {
+      if (!modalTargetFacilityId) return;
+      const selectedRadio = document.querySelector('input[name="disqualifyReason"]:checked');
+      const reason = selectedRadio ? selectedRadio.value : 'NO_PENDING_POLICY';
+      const auditNote = document.getElementById('disqualifyAuditNotes').value.trim();
+      const today = new Date().toISOString().split('T')[0];
+
+      const activeRemaining = facilities.filter(f => !f.disqualified && f.id !== modalTargetFacilityId);
+      const nextCandidate = activeRemaining.length > 0 ? activeRemaining[0] : null;
+
+      facilities = facilities.map(f => {
+        if (f.id === modalTargetFacilityId) {
+          return {
+            ...f,
+            disqualified: true,
+            disqualification_reason: reason,
+            disqualified_date: today,
+            referral_status: "DENIED",
+            notes: auditNote ? `${f.notes ? f.notes + " | " : ""}[ELIMINATED]: ${auditNote}` : f.notes,
+            last_contact_date: today
+          };
+        }
+        return f;
+      });
+
+      saveState();
+      document.getElementById('disqualifyModal').classList.add('hidden');
+      const targetName = facilities.find(f => f.id === modalTargetFacilityId)?.facility_name;
+      showToast(`Eliminated ${targetName || 'facility'}. Queue advanced.`);
+
+      if (nextCandidate) {
+        selectFacility(nextCandidate.id);
+      } else {
+        renderFacilitiesList();
+      }
+      updateMetrics();
+    }
+
+    function restoreFacility(facilityId) {
+      facilities = facilities.map(f => {
+        if (f.id === facilityId) {
+          return {
+            ...f,
+            disqualified: false,
+            disqualification_reason: null,
+            disqualified_date: null,
+            referral_status: "NOT_STARTED"
+          };
+        }
+        return f;
+      });
+      saveState();
+      showToast("Reinstated facility to active pipeline queue.");
+      updateMetrics();
+      renderFacilitiesList();
+    }
+
+    function runBatchDisqualification(ruleType) {
+      const today = new Date().toISOString().split('T')[0];
+      let count = 0;
+
+      facilities = facilities.map(f => {
+        if (f.disqualified) return f;
+
+        let shouldDisqualify = false;
+        let reason = "NO_PENDING_POLICY";
+
+        if (ruleType === "ALL_NO_PENDING" && f.accepts_mh_pending === "NO") {
+          shouldDisqualify = true;
+          reason = "NO_PENDING_POLICY";
+        } else if (ruleType === "ALL_NO_BEDS" && f.current_bed_available === "NO") {
+          shouldDisqualify = true;
+          reason = "NO_BEDS_INDEFINITE";
+        } else if (ruleType === "SELECTED" && selectedCheckboxIds.has(f.id)) {
+          shouldDisqualify = true;
+          reason = "NO_PENDING_POLICY";
+        }
+
+        if (shouldDisqualify) {
+          count++;
+          return {
+            ...f,
+            disqualified: true,
+            disqualification_reason: reason,
+            disqualified_date: today,
+            referral_status: "DENIED"
+          };
+        }
+        return f;
+      });
+
+      selectedCheckboxIds.clear();
+      updateSelectedCountLabel();
+      saveState();
+      document.getElementById('batchRulesModal').classList.add('hidden');
+      showToast(`Systemically eliminated ${count} facilities.`);
+      updateMetrics();
+      renderFacilitiesList();
+    }
+
+    function updateSelectedCountLabel() {
+      const label = document.getElementById('selectedCountLabel');
+      const badge = document.getElementById('rosterSelectionStatus');
+      const count = selectedCheckboxIds.size;
+      label.textContent = `${count} facilities currently selected.`;
+      if (count > 0) {
+        badge.textContent = `${count} selected`;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    async function executeNpiLookup(npi) {
+      const cleanNpi = npi.trim().replace(/\D/g, '');
+      const errBox = document.getElementById('npiErrorMessage');
+      const resCard = document.getElementById('npiResultCard');
+      const submitBtn = document.getElementById('npiSubmitBtn');
+
+      errBox.classList.add('hidden');
+      resCard.classList.add('hidden');
+
+      if (cleanNpi.length !== 10) {
+        errBox.textContent = 'Please enter a valid 10-digit NPI number.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Querying...';
+
+      try {
+        const response = await fetch(`https://npiregistry.cms.hhs.gov/api/?version=2.1&number=${cleanNpi}`);
+        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+        const data = await response.json();
+
+        if (!data.results || data.results.length === 0) {
+          throw new Error(`No provider organization found for NPI ${cleanNpi}.`);
+        }
+
+        const item = data.results[0];
+        const basic = item.basic || {};
+        const addresses = item.addresses || [];
+        const locationAddr = addresses.find(a => a.address_purpose === "LOCATION") || addresses[0] || {};
+        const mailingAddr = addresses.find(a => a.address_purpose === "MAILING") || {};
+        const taxonomies = item.taxonomies || [];
+        const identifiers = item.identifiers || [];
+
+        const primaryTax = taxonomies.find(t => t.primary) || taxonomies[0] || {};
+        const medicaidObj = identifiers.find(i => 
+          (i.desc && i.desc.toUpperCase().includes("MEDICAID")) ||
+          (i.issuer && i.issuer.toUpperCase().includes("MEDICAID")) ||
+          (i.issuer && i.issuer.toUpperCase().includes("MASSHEALTH"))
+        );
+
+        let officialStr = "None recorded";
+        if (basic.authorized_official_first_name) {
+          officialStr = `${basic.authorized_official_first_name} ${basic.authorized_official_last_name} (${basic.authorized_official_title_or_position || 'Official'})`;
+        }
+
+        const orgName = basic.organization_name || `${basic.first_name || ''} ${basic.last_name || ''}`.trim();
+        const street = locationAddr.address_1 || mailingAddr.address_1 || "Address on file";
+        const city = locationAddr.city || mailingAddr.city || "Boston";
+        const zip = ((locationAddr.postal_code || mailingAddr.postal_code || "").substring(0, 5)) || "02100";
+        const phone = locationAddr.telephone_number || basic.authorized_official_telephone_number || "";
+        const fax = locationAddr.fax_number || "";
+        const lastUpdated = basic.last_updated || "Unknown";
+
+        temporaryNpiImportData = {
+          facility_name: orgName,
+          street_address: street,
+          city: city,
+          zip: zip,
+          npi: cleanNpi,
+          ccn: cleanNpi.substring(4),
+          phone: phone,
+          fax: fax,
+          last_updated: lastUpdated,
+          taxonomy: primaryTax.desc || "Skilled Nursing Facility",
+          medicaid_id: medicaidObj ? medicaidObj.identifier : null,
+          official: officialStr
+        };
+
+        document.getElementById('npiResOrgName').textContent = orgName;
+        document.getElementById('npiResAddress').textContent = `${street}, ${city}, MA ${zip}`;
+        document.getElementById('npiResNpiNumber').textContent = `NPI: ${cleanNpi}`;
+        document.getElementById('npiResPhone').textContent = phone || "None listed";
+        document.getElementById('npiResFax').textContent = fax || "None listed";
+        document.getElementById('npiResTaxonomy').textContent = primaryTax.desc || "Skilled Nursing Facility";
+        document.getElementById('npiResLastUpdated').textContent = lastUpdated;
+
+        if (medicaidObj) {
+          document.getElementById('npiResMedicaidId').textContent = medicaidObj.identifier;
+          document.getElementById('npiResMedicaidRow').classList.remove('hidden');
+        } else {
+          document.getElementById('npiResMedicaidRow').classList.add('hidden');
+        }
+
+        document.getElementById('npiResOfficial').textContent = officialStr;
+
+        const warningBox = document.getElementById('npiStaleWarning');
+        if (lastUpdated.startsWith('201') || lastUpdated.startsWith('2020')) {
+          warningBox.classList.remove('hidden');
+        } else {
+          warningBox.classList.add('hidden');
+        }
+
+        resCard.classList.remove('hidden');
+      } catch (err) {
+        errBox.textContent = `Registry Query Failed: ${err.message}`;
+        errBox.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Query NPI';
+      }
+    }
+
+    function recalculatePpa() {
+      const ss = parseFloat(document.getElementById('ppaInputSs').value) || 0;
+      const pension = parseFloat(document.getElementById('ppaInputPension').value) || 0;
+      const pna = parseFloat(document.getElementById('ppaInputPna').value) || 72.80;
+      const healthIns = parseFloat(document.getElementById('ppaInputHealthIns').value) || 0;
+
+      const totalGross = ss + pension;
+      const deductions = pna + healthIns;
+      const netPpa = Math.max(0, totalGross - deductions);
+
+      document.getElementById('ppaCalculatedResult').textContent = `$${netPpa.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      return netPpa;
+    }
+
+    document.getElementById('ppaInputSs').addEventListener('input', recalculatePpa);
+    document.getElementById('ppaInputPension').addEventListener('input', recalculatePpa);
+    document.getElementById('ppaInputHealthIns').addEventListener('input', recalculatePpa);
+
+    document.getElementById('insertPpaIntoNotesBtn').addEventListener('click', () => {
+      const ppaVal = recalculatePpa();
+      const fac = facilities.find(f => f.id === selectedFacilityId);
+      if (!fac) return;
+      const ppaSummary = `[PPA CALC]: Monthly gross income assigned = $${ppaVal.toFixed(2)}/mo (SS/pension minus $72.80 MA PNA & Medigap). Resident ready to execute BOM income turnover.`;
+      fac.notes = fac.notes ? `${fac.notes} | ${ppaSummary}` : ppaSummary;
+      document.getElementById('inputNotes').value = fac.notes;
+      saveState();
+      document.getElementById('ppaCalculatorModal').classList.add('hidden');
+      showToast('Inserted PPA figures into intake record!');
+    });
+
+    function generatePacketText() {
+      const fac = facilities.find(f => f.id === selectedFacilityId) || facilities[0];
+      const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const ppaVal = recalculatePpa();
+
+      const text = `========================================================================
+MASSACHUSETTS LONG-TERM CARE ADMISSIONS REFERRAL COVER MEMO
+DATE: ${today}
+TO: Admissions Department - ${fac.facility_name}
+ATTN: ${fac.admissions_contact || 'Admissions Director / Business Office Manager'}
+DIRECT PHONE: ${fac.admissions_phone || '—'}
+DIRECT EMAIL / FAX: ${fac.admissions_email || '—'}
+CCN: ${fac.ccn || '—'} | NPI: ${fac.npi || '—'}
+========================================================================
+
+SUBJECT: Expedited Referral Packet - MassHealth Pending Resident Intake
+
+DEAR ADMISSIONS TEAM,
+We are submitting an expedited clinical and financial admissions packet for 
+evaluation for placement in your custodial skilled nursing facility.
+
+1. MASSHEALTH PENDING READINESS:
+   - Application Status: Form SC-1 / Long-Term Care Application on file.
+   - Estimated Monthly Patient-Paid Amount (PPA): $${ppaVal.toFixed(2)} / month.
+   - Financial Assignment: DPOA/Applicant prepared to sign monthly income turnover.
+   - Bank Records: 3 months checking/savings statements compiled and verified.
+   - PASRR Screening: Level 1 completed & ready for nursing review.
+
+2. FACILITY ATTRIBUTES LOGGED:
+   - Bed Availability Tracked: ${fac.current_bed_available}
+   - Secured Memory Care Required: ${fac.has_memory_care ? 'YES' : 'Standard LTC'}
+   - Wound / IV Clinical Status: ${fac.has_wound_vac ? 'Wound care required' : 'Standard custodial'}
+
+3. CLINICAL ATTACHMENTS INCLUDED:
+   [X] PASRR Level 1 Screen
+   [X] Current History & Physical (H&P) / Medication Administration Record (MAR)
+   [X] PT/OT Functional Mobility & ADL Evaluation
+   [X] MassHealth SC-1 Electronic Submission Confirmation Receipt
+   [X] Signed Health Care Proxy (HCP) & Durable Financial POA (DPOA)
+
+Please confirm receipt of this transmission and advise regarding bed offer.
+Direct Coordinator Callback: (617) 555-0100 | confidential-intake@referrals.org
+========================================================================`;
+
+      document.getElementById('packetTextarea').value = text;
+    }
+
+    function exportToCsv() {
+      const headers = [
+        "Facility Name", "NPI", "CCN", "City", "ZIP", "Phone", "Contact",
+        "MH Pending", "Bed Open", "Referral Status", "Follow Up Date", "Requires Asset Review", "Requires SC1", "Memory Care", "Disqualified", "Reason", "Notes"
+      ];
+
+      const rows = getFilteredFacilities().map(f => [
+        `"${f.facility_name}"`,
+        `"${f.npi || ''}"`,
+        `"${f.ccn || ''}"`,
+        `"${f.city}"`,
+        `"${f.zip}"`,
+        `"${f.admissions_phone}"`,
+        `"${f.admissions_contact || ''}"`,
+        `"${f.accepts_mh_pending}"`,
+        `"${f.current_bed_available}"`,
+        `"${f.referral_status}"`,
+        `"${f.follow_up_date || ''}"`,
+        f.requires_asset_prescreen ? "YES" : "NO",
+        f.requires_app_receipt ? "YES" : "NO",
+        f.has_memory_care ? "YES" : "NO",
+        f.disqualified ? "YES" : "NO",
+        `"${f.disqualification_reason || ''}"`,
+        `"${(f.notes || '').replace(/"/g, '""')}"`
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `masshealth_snf_pipeline_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("Exported pipeline dataset to CSV!");
+    }
+
+    // Question 1 button clicks
+    document.querySelectorAll('.pending-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.getAttribute('data-val');
+        const fac = facilities.find(f => f.id === selectedFacilityId);
+        if (fac) {
+          fac.accepts_mh_pending = val;
+          selectFacility(fac.id);
+          if (val === 'NO') {
+            openDisqualifyModal(fac.id);
+          }
+        }
+      });
+    });
+
+    // Question 2 button clicks
+    document.querySelectorAll('.bed-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.getAttribute('data-bed');
+        const fac = facilities.find(f => f.id === selectedFacilityId);
+        if (fac) {
+          fac.current_bed_available = val;
+          selectFacility(fac.id);
+        }
+      });
+    });
+
+    // Disqualification modal triggers
+    document.getElementById('fastDisqualifyTrigger').addEventListener('click', () => openDisqualifyModal(selectedFacilityId));
+    document.getElementById('intakeDisqualifyBtn').addEventListener('click', () => openDisqualifyModal(selectedFacilityId));
+    document.getElementById('confirmDisqualifyBtn').addEventListener('click', confirmDisqualification);
+    document.getElementById('cancelDisqualifyBtn').addEventListener('click', () => document.getElementById('disqualifyModal').classList.add('hidden'));
+    document.getElementById('closeDisqualifyModal').addEventListener('click', () => document.getElementById('disqualifyModal').classList.add('hidden'));
+
+    // Batch Disqualify Modal
+    document.getElementById('batchDisqualifyModalTrigger').addEventListener('click', () => {
+      updateSelectedCountLabel();
+      document.getElementById('batchRulesModal').classList.remove('hidden');
+    });
+    document.getElementById('closeBatchRulesModal').addEventListener('click', () => document.getElementById('batchRulesModal').classList.add('hidden'));
+    document.getElementById('closeBatchRulesBtn').addEventListener('click', () => document.getElementById('batchRulesModal').classList.add('hidden'));
+    document.getElementById('ruleNoPending').addEventListener('click', () => runBatchDisqualification('ALL_NO_PENDING'));
+    document.getElementById('ruleNoBeds').addEventListener('click', () => runBatchDisqualification('ALL_NO_BEDS'));
+    document.getElementById('ruleSelectedCheckboxes').addEventListener('click', () => runBatchDisqualification('SELECTED'));
+
+    // PPA Calculator Modal
+    document.getElementById('ppaCalculatorModalTrigger').addEventListener('click', () => {
+      recalculatePpa();
+      document.getElementById('ppaCalculatorModal').classList.remove('hidden');
+    });
+    document.getElementById('closePpaModal').addEventListener('click', () => document.getElementById('ppaCalculatorModal').classList.add('hidden'));
+    document.getElementById('closePpaModalBtn').addEventListener('click', () => document.getElementById('ppaCalculatorModal').classList.add('hidden'));
+
+    // Referral Packet Cover Sheet Modal
+    document.getElementById('packetGenTrigger').addEventListener('click', () => {
+      generatePacketText();
+      document.getElementById('packetModal').classList.remove('hidden');
+    });
+    document.getElementById('closePacketModal').addEventListener('click', () => document.getElementById('packetModal').classList.add('hidden'));
+    document.getElementById('closePacketModalBtn').addEventListener('click', () => document.getElementById('packetModal').classList.add('hidden'));
+    document.getElementById('copyPacketBtn').addEventListener('click', () => {
+      const copyTextarea = document.getElementById('packetTextarea');
+      copyTextarea.select();
+      document.execCommand('copy');
+      showToast('Copied referral cover sheet to clipboard!');
+    });
+
+    // Seed Full Roster Button
+    document.getElementById('seedFullRosterBtn').addEventListener('click', () => {
+      resetToFullDirectory();
+    });
+
+    // NPI Modal
+    document.getElementById('npiLookupModalTrigger').addEventListener('click', () => {
+      document.getElementById('npiLookupModal').classList.remove('hidden');
+      document.getElementById('npiErrorMessage').classList.add('hidden');
+      document.getElementById('npiResultCard').classList.add('hidden');
+    });
+    document.getElementById('closeNpiModal').addEventListener('click', () => document.getElementById('npiLookupModal').classList.add('hidden'));
+    document.getElementById('closeNpiModalBtn').addEventListener('click', () => document.getElementById('npiLookupModal').classList.add('hidden'));
+    document.getElementById('npiSearchForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      executeNpiLookup(document.getElementById('npiInputQuery').value);
+    });
+
+    // Import from NPI result
+    document.getElementById('npiImportBtn').addEventListener('click', () => {
+      if (!temporaryNpiImportData) return;
+      const newFac = {
+        id: Date.now(),
+        facility_name: temporaryNpiImportData.facility_name,
+        street_address: temporaryNpiImportData.street_address,
+        city: temporaryNpiImportData.city,
+        zip: temporaryNpiImportData.zip,
+        npi: temporaryNpiImportData.npi,
+        ccn: temporaryNpiImportData.ccn,
+        total_beds: 100,
+        overall_rating: 3,
+        admissions_phone: temporaryNpiImportData.phone || '(617) 000-0000',
+        admissions_email: '',
+        admissions_contact: temporaryNpiImportData.official || '',
+        accepts_mh_pending: 'UNKNOWN',
+        current_bed_available: 'UNKNOWN',
+        referral_status: 'NOT_STARTED',
+        follow_up_date: '',
+        call_logs: [{ date: new Date().toISOString().slice(0, 10), note: 'Imported from CMS NPPES Registry.' }],
+        requires_asset_prescreen: false,
+        requires_app_receipt: false,
+        requires_pasrr_level: false,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: false,
+        notes: `Imported via CMS NPPES Registry (NPI ${temporaryNpiImportData.npi}). Taxonomy: ${temporaryNpiImportData.taxonomy}. Last updated: ${temporaryNpiImportData.last_updated}.`,
+        last_contact_date: new Date().toISOString().split('T')[0],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      };
+
+      facilities.unshift(newFac);
+      saveState();
+      document.getElementById('npiLookupModal').classList.add('hidden');
+      populateCityFilter();
+      updateMetrics();
+      selectFacility(newFac.id);
+      showToast(`Imported ${newFac.facility_name} into Active Queue!`);
+    });
+
+    // Add Facility Modal
+    const addFacModal = document.getElementById('addFacilityModal');
+    document.getElementById('openAddFacilityModalBtn').addEventListener('click', () => {
+      addFacModal.classList.remove('hidden');
+    });
+    document.getElementById('closeAddFacilityModal').addEventListener('click', () => addFacModal.classList.add('hidden'));
+    document.getElementById('cancelAddFacilityBtn').addEventListener('click', () => addFacModal.classList.add('hidden'));
+    document.getElementById('addFacilityForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('addFacName').value.trim();
+      const city = document.getElementById('addFacCity').value.trim();
+      const phone = document.getElementById('addFacPhone').value.trim();
+      const street = document.getElementById('addFacStreet').value.trim() || 'Address on file';
+      const zip = document.getElementById('addFacZip').value.trim() || '02100';
+      const rating = parseInt(document.getElementById('addFacRating').value, 10) || 3;
+      const beds = parseInt(document.getElementById('addFacBeds').value, 10) || 100;
+
+      const manualFac = {
+        id: Date.now(),
+        facility_name: name,
+        street_address: street,
+        city: city,
+        zip: zip,
+        npi: '',
+        ccn: '',
+        total_beds: beds,
+        overall_rating: rating,
+        admissions_phone: phone,
+        admissions_email: '',
+        admissions_contact: '',
+        accepts_mh_pending: 'UNKNOWN',
+        current_bed_available: 'UNKNOWN',
+        referral_status: 'NOT_STARTED',
+        follow_up_date: '',
+        call_logs: [{ date: new Date().toISOString().slice(0, 10), note: 'Manual facility record added to CRM.' }],
+        requires_asset_prescreen: false,
+        requires_app_receipt: false,
+        requires_pasrr_level: false,
+        has_memory_care: false,
+        has_bariatric: false,
+        has_trach: false,
+        has_wound_vac: false,
+        notes: 'Newly added facility. Ready for admissions outreach call.',
+        last_contact_date: new Date().toISOString().split('T')[0],
+        disqualified: false,
+        disqualification_reason: null,
+        disqualified_date: null
+      };
+
+      facilities.unshift(manualFac);
+      saveState();
+      addFacModal.classList.add('hidden');
+      document.getElementById('addFacilityForm').reset();
+      populateCityFilter();
+      updateMetrics();
+      selectFacility(manualFac.id);
+      showToast(`Added ${name} to pipeline!`);
+    });
+
+    // Toggle Script Guide
+    document.getElementById('toggleScriptGuideBtn').addEventListener('click', () => {
+      const g = document.getElementById('detailedScriptGuide');
+      g.classList.toggle('hidden');
+    });
+
+    const tabActive = document.getElementById('tabActive');
+    const tabDisqualified = document.getElementById('tabDisqualified');
+    const tabAll = document.getElementById('tabAll');
+
+    function setActiveTab(tab) {
+      currentTab = tab;
+      [tabActive, tabDisqualified, tabAll].forEach(t => {
+        t.className = 'pb-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-1.5 transition';
+      });
+
+      if (tab === 'ACTIVE') {
+        tabActive.className = 'pb-3 border-b-2 border-blue-600 text-blue-600 flex items-center space-x-1.5 transition';
+      } else if (tab === 'DISQUALIFIED') {
+        tabDisqualified.className = 'pb-3 border-b-2 border-rose-600 text-rose-600 flex items-center space-x-1.5 transition';
+      } else {
+        tabAll.className = 'pb-3 border-b-2 border-slate-900 text-slate-900 flex items-center space-x-1.5 transition';
+      }
+      renderFacilitiesList();
+    }
+
+    tabActive.addEventListener('click', () => setActiveTab('ACTIVE'));
+    tabDisqualified.addEventListener('click', () => setActiveTab('DISQUALIFIED'));
+    tabAll.addEventListener('click', () => setActiveTab('ALL'));
+
+    // Search and city filters
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      currentSearchText = e.target.value;
+      renderFacilitiesList();
+    });
+
+    document.getElementById('citySelect').addEventListener('change', (e) => {
+      currentCityFilter = e.target.value;
+      renderFacilitiesList();
+    });
+
+    document.getElementById('sortSelect').addEventListener('change', (e) => {
+      currentSort = e.target.value;
+      renderFacilitiesList();
+    });
+
+    // Quick filter buttons
+    document.getElementById('filterClear').addEventListener('click', () => {
+      currentPendingFilter = 'ALL';
+      currentBedFilter = 'ALL';
+      currentMemoryFilter = false;
+      renderFacilitiesList();
+    });
+    document.getElementById('filterPendingYes').addEventListener('click', () => {
+      currentPendingFilter = currentPendingFilter === 'YES' ? 'ALL' : 'YES';
+      renderFacilitiesList();
+    });
+    document.getElementById('filterBedOpen').addEventListener('click', () => {
+      currentBedFilter = currentBedFilter === 'YES' ? 'ALL' : 'YES';
+      renderFacilitiesList();
+    });
+    document.getElementById('filterMemoryCare').addEventListener('click', () => {
+      currentMemoryFilter = !currentMemoryFilter;
+      renderFacilitiesList();
+    });
+    document.getElementById('filterNeedsCall').addEventListener('click', () => {
+      currentPendingFilter = currentPendingFilter === 'UNKNOWN' ? 'ALL' : 'UNKNOWN';
+      renderFacilitiesList();
+    });
+
+    // Select All Checkbox
+    document.getElementById('selectAllCheckbox').addEventListener('change', (e) => {
+      const filtered = getFilteredFacilities();
+      if (e.target.checked) {
+        filtered.forEach(f => selectedCheckboxIds.add(f.id));
+      } else {
+        filtered.forEach(f => selectedCheckboxIds.delete(f.id));
+      }
+      updateSelectedCountLabel();
+      renderFacilitiesList();
+    });
+
+    // Keyboard navigation shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+          e.preventDefault();
+          saveCurrentIntakeForm();
+        }
+        return;
+      }
+
+      const activeList = getFilteredFacilities();
+      const currentIndex = activeList.findIndex(f => f.id === selectedFacilityId);
+
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        if (currentIndex < activeList.length - 1) {
+          selectFacility(activeList[currentIndex + 1].id);
+        }
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        if (currentIndex > 0) {
+          selectFacility(activeList[currentIndex - 1].id);
+        }
+      } else if (e.key === 'd' || e.key === 'D') {
+        openDisqualifyModal(selectedFacilityId);
+      } else if (e.key === 's' || e.key === 'S') {
+        saveCurrentIntakeForm();
+      }
+    });
+
+    // CSV export
+    document.getElementById('exportCsvBtn').addEventListener('click', exportToCsv);
+
+    // Initial load
+    window.addEventListener('DOMContentLoaded', () => {
+      populateCityFilter();
+      updateMetrics();
+      selectFacility(selectedFacilityId);
+    });
+  </script>
+</body>
+</html>
