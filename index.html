@@ -3687,7 +3687,465 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
       updateMetrics();
       selectFacility(selectedFacilityId);
       renderFacilitiesList();
+      initOnboarding();
     });
+  </script>
+
+  <!-- ============================================================
+       FIRST-TIME USER ONBOARDING OVERLAY
+       ============================================================ -->
+  <style>
+    /* Onboarding overlay */
+    #onboardingOverlay {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(15,23,42,0.82);
+      backdrop-filter: blur(4px);
+    }
+    #onboardingOverlay.ob-hidden { display: none !important; }
+
+    /* Spotlight cutout for targeted step */
+    #onboardingSpotlight {
+      position: fixed; z-index: 9998; pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(15,23,42,0.78);
+      border-radius: 10px;
+      transition: top .4s ease, left .4s ease, width .4s ease, height .4s ease;
+    }
+    #onboardingSpotlight.ob-hidden { display: none; }
+
+    /* Tooltip bubble anchored to a spotlight */
+    #onboardingTooltip {
+      position: fixed; z-index: 10000;
+      background: white; border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      max-width: 380px; width: 90vw;
+      padding: 20px 22px;
+      transition: top .4s ease, left .4s ease;
+    }
+    #onboardingTooltip.ob-hidden { display: none; }
+
+    /* Card (center screen, no spotlight) */
+    #onboardingCard {
+      background: white; border-radius: 18px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.4);
+      max-width: 560px; width: 92vw;
+      overflow: hidden;
+      animation: ob-slide-up .35s ease;
+    }
+    @keyframes ob-slide-up {
+      from { opacity:0; transform: translateY(24px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+
+    .ob-step-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 50%;
+      font-size: 11px; font-weight: 800;
+    }
+    .ob-progress-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #cbd5e1; transition: background .25s;
+    }
+    .ob-progress-dot.active { background: #2563eb; transform: scale(1.25); }
+    .ob-progress-dot.done   { background: #10b981; }
+  </style>
+
+  <!-- Spotlight ring (shown during targeted steps) -->
+  <div id="onboardingSpotlight" class="ob-hidden"></div>
+
+  <!-- Tooltip bubble (shown during targeted steps) -->
+  <div id="onboardingTooltip" class="ob-hidden">
+    <div class="flex items-center justify-between mb-2">
+      <span id="obTooltipStepLabel" class="ob-step-pill bg-blue-600 text-white"></span>
+      <button id="obTooltipSkip" class="text-xs text-slate-400 hover:text-slate-600 underline">Skip tour</button>
+    </div>
+    <p id="obTooltipTitle" class="font-extrabold text-slate-900 text-sm mb-1"></p>
+    <p id="obTooltipBody" class="text-slate-600 text-xs leading-relaxed mb-3"></p>
+    <div class="flex items-center justify-between gap-2">
+      <button id="obTooltipBack" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">← Back</button>
+      <button id="obTooltipNext" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition">Next →</button>
+    </div>
+  </div>
+
+  <!-- Main overlay (center cards for intro/outro steps) -->
+  <div id="onboardingOverlay" class="ob-hidden">
+    <div id="onboardingCard">
+      <!-- Card Header -->
+      <div id="obCardHeader" class="px-6 py-5 bg-gradient-to-r from-blue-700 to-indigo-800 text-white">
+        <div class="flex items-center space-x-3">
+          <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center text-2xl">🏥</div>
+          <div>
+            <h2 id="obCardTitle" class="text-lg font-extrabold leading-tight"></h2>
+            <p id="obCardSubtitle" class="text-xs text-blue-200 mt-0.5"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Body -->
+      <div id="obCardBody" class="p-6 space-y-4 text-sm"></div>
+
+      <!-- Card Footer -->
+      <div class="px-6 pb-5 flex items-center justify-between gap-3">
+        <!-- Progress dots -->
+        <div class="flex items-center gap-1.5" id="obProgressDots"></div>
+        <!-- Buttons -->
+        <div class="flex items-center gap-2">
+          <button id="obSkipBtn" class="text-xs text-slate-400 hover:text-slate-600 underline px-2">Skip tour</button>
+          <button id="obBackBtn" class="hidden px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">← Back</button>
+          <button id="obNextBtn" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-sm">Get Started →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ============================================================
+  // ONBOARDING ENGINE
+  // ============================================================
+  (function() {
+    const OB_KEY = 'masshealth_crm_onboarding_v1_done';
+
+    // Each step: type = 'card' (center modal) or 'spotlight' (targeted element)
+    const STEPS = [
+      // ---- CARD STEPS (intro/outro) ----
+      {
+        type: 'card',
+        title: 'Welcome to MassHealth Placement Intelligence',
+        subtitle: 'Your guided 3-minute walkthrough',
+        body: `
+          <div class="space-y-3 text-slate-700 text-xs leading-relaxed">
+            <p>This CRM is purpose-built for <strong>hospital case managers, social workers, and guardians</strong> navigating MassHealth (Massachusetts Medicaid) skilled nursing facility (SNF) placements for patients with <em>pending</em> eligibility.</p>
+            <div class="grid grid-cols-3 gap-3">
+              <div class="bg-blue-50 rounded-xl p-3 text-center border border-blue-100">
+                <div class="text-2xl mb-1">🔍</div>
+                <strong class="text-blue-900 block text-[11px]">Triage</strong>
+                <span class="text-slate-500 text-[11px]">Score &amp; rank 32+ SNFs against each patient case</span>
+              </div>
+              <div class="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
+                <div class="text-2xl mb-1">📞</div>
+                <strong class="text-emerald-900 block text-[11px]">Verify</strong>
+                <span class="text-slate-500 text-[11px]">Capture structured call data using a standardized survey</span>
+              </div>
+              <div class="bg-purple-50 rounded-xl p-3 text-center border border-purple-100">
+                <div class="text-2xl mb-1">✅</div>
+                <strong class="text-purple-900 block text-[11px]">Place</strong>
+                <span class="text-slate-500 text-[11px]">Drive referral packets through to a confirmed bed offer</span>
+              </div>
+            </div>
+            <p class="text-[11px] text-slate-500 border-t pt-2">This tour will walk you through the layout, data entry workflow, and key tools. It takes about 3 minutes.</p>
+          </div>`
+      },
+      // ---- SPOTLIGHT STEPS ----
+      {
+        type: 'spotlight',
+        target: '.bg-slate-900.text-white.border-b.border-slate-800',
+        title: 'Active Case Profile Bar',
+        body: 'Start here. Every session is anchored to one patient. Use the dropdown to switch between active placement cases. Edit clinical needs (memory care, bariatric, trach) with "✎ Edit Case Needs" — these needs drive the match score for every facility.',
+        pos: 'below'
+      },
+      {
+        type: 'spotlight',
+        target: '#metricActiveQueue',
+        targetParent: true,
+        title: 'Triage Metrics Ribbon',
+        body: 'Live counts update as you work: Active Queue, MassHealth Pending YES, Beds Open, Packets in Review, Data Flags, and Eliminated facilities. Green numbers are good signals; amber/rose mean action needed.',
+        pos: 'below'
+      },
+      {
+        type: 'spotlight',
+        target: '.bg-gradient-to-r.from-slate-900',
+        title: 'Standardized Survey Script',
+        body: 'Every facility call follows the same 3-question script: (1) Do you accept MH pending? (2) What docs does the Business Office require? (3) Who handles pending intakes and what\'s their direct fax/email? This turns random phone calls into structured, comparable data.',
+        pos: 'below'
+      },
+      {
+        type: 'spotlight',
+        target: '#facilitiesListContainer',
+        targetParent: true,
+        title: 'Facility Triage Queue',
+        body: 'The ranked list of SNFs for the active patient. Click any row to load it into the Verification Terminal on the right. Facilities are scored by case match % — higher is better. Use the tabs to switch between Active Queue, Data Flags, Eliminated Archive, and All.',
+        pos: 'right'
+      },
+      {
+        type: 'spotlight',
+        target: '#searchInput',
+        targetParent: true,
+        title: 'Search & Filter Controls',
+        body: 'Search by name, city, NPI, CCN, or notes. Filter by municipality or sort by match score, CMS star rating, or recent contact. Quick-filter buttons let you instantly surface "Pending: YES", "Bed Open", or "Needs Outreach" facilities.',
+        pos: 'below'
+      },
+      {
+        type: 'spotlight',
+        target: '#intakeForm',
+        targetParent: true,
+        title: 'Verification Terminal — Data Capture',
+        body: 'After selecting a facility, fill out this form during or immediately after your call. Q1 (MH Pending policy), Q2 (Bed open?), gatekeeper checkboxes, clinical capabilities, and direct contact details are all normalized fields — meaning every facility is measured on the same axes for fair comparison.',
+        pos: 'left'
+      },
+      {
+        type: 'spotlight',
+        target: '#selectReferralStatus',
+        targetParent: true,
+        title: 'Placement Stage Workflow',
+        body: 'Each facility moves through 6 stages: Pre-Screen → Referral Sent → Clinical Review → Financial (BOM) Review → Accepted → Denied. Use the Quick Call Action Macros above the form to stamp stages with a single click, auto-timestamped in the contact timeline.',
+        pos: 'left'
+      },
+      // ---- CARD STEP: Data normalization explanation ----
+      {
+        type: 'card',
+        title: 'How Match Scores & Data Normalization Work',
+        subtitle: 'Every field you enter improves placement accuracy',
+        body: `
+          <div class="space-y-3 text-xs text-slate-700 leading-relaxed">
+            <p>The <strong>Case Match %</strong> badge on each facility is calculated in real time from the patient's clinical needs vs. the facility's verified capabilities:</p>
+            <div class="space-y-2">
+              <div class="flex items-start gap-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                <span class="text-base">🟢</span>
+                <div><strong class="text-slate-900">MH Pending = YES</strong> — highest weight. A facility that won't accept pending is almost always eliminated.</div>
+              </div>
+              <div class="flex items-start gap-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                <span class="text-base">🛏️</span>
+                <div><strong class="text-slate-900">Bed Open = YES</strong> — second highest weight. A pending-friendly facility with no bed still can't help today.</div>
+              </div>
+              <div class="flex items-start gap-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                <span class="text-base">🧠</span>
+                <div><strong class="text-slate-900">Clinical capabilities</strong> (memory care, bariatric, trach, wound) must match patient needs exactly or the score drops sharply.</div>
+              </div>
+              <div class="flex items-start gap-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                <span class="text-base">⚠️</span>
+                <div><strong class="text-slate-900">Data flags</strong> (stale NPI, operator succession) reduce the match score until re-verified. The "Data &amp; Succession Flags" tab surfaces these.</div>
+              </div>
+            </div>
+            <p class="text-[11px] text-slate-500 border-t pt-2">Every save you make normalizes data across the entire roster — the sort order re-ranks automatically after each entry.</p>
+          </div>`
+      },
+      {
+        type: 'spotlight',
+        target: '#openAddFacilityModalBtn',
+        targetParent: true,
+        title: 'Top Toolbar — Your Key Tools',
+        body: '"✈️ Get Back to Mass" — interstate repatriation hub with legal documents and negotiation scripts.\n\n"📋 Packet Audit" — 10-point checklist scores your referral packet strength before you send it.\n\n"🧮 PPA Calc" — calculates the monthly Patient-Paid Amount (income minus $72.80 PNA allowance).\n\n"NPI Verification" — live query against the CMS NPPES registry to confirm operator identity.\n\n"💾 Backup/CSV" — export or import your full CRM state.',
+        pos: 'below'
+      },
+      // ---- CARD STEP: outro ----
+      {
+        type: 'card',
+        title: "You're ready to place",
+        subtitle: 'Key shortcuts to remember',
+        body: `
+          <div class="space-y-3 text-xs text-slate-700 leading-relaxed">
+            <div class="grid grid-cols-2 gap-2">
+              <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                <strong class="text-slate-800 block font-mono text-[11px] mb-1">[J] / [K]</strong>
+                <span class="text-slate-500">Navigate facility list up/down</span>
+              </div>
+              <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                <strong class="text-slate-800 block font-mono text-[11px] mb-1">[D]</strong>
+                <span class="text-slate-500">Disqualify current facility &amp; advance queue</span>
+              </div>
+              <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                <strong class="text-slate-800 block font-mono text-[11px] mb-1">[Ctrl+S]</strong>
+                <span class="text-slate-500">Save verification record</span>
+              </div>
+              <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                <strong class="text-slate-800 block font-mono text-[11px] mb-1">💾 Backup/CSV</strong>
+                <span class="text-slate-500">Export data anytime; re-import on next session</span>
+              </div>
+            </div>
+            <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900">
+              <strong class="block mb-1">Suggested first actions:</strong>
+              <ol class="list-decimal list-inside space-y-1 text-blue-800">
+                <li>Click <em>✎ Edit Case Needs</em> to set your patient's clinical requirements</li>
+                <li>Review the Active Queue sorted by Case Match %</li>
+                <li>Call the top-ranked facility and complete the Verification Terminal form</li>
+                <li>Use <em>📋 Packet Audit</em> before sending your first referral</li>
+              </ol>
+            </div>
+            <p class="text-center text-[11px] text-slate-400">This tour is stored in your browser. Reload anytime via the ↻ Reset button.</p>
+          </div>`
+      }
+    ];
+
+    const TOTAL_STEPS = STEPS.length;
+    let currentStep = 0;
+
+    // DOM refs
+    const overlay      = document.getElementById('onboardingOverlay');
+    const spotlight    = document.getElementById('onboardingSpotlight');
+    const tooltip      = document.getElementById('onboardingTooltip');
+    const card         = document.getElementById('onboardingCard');
+    const obCardTitle  = document.getElementById('obCardTitle');
+    const obCardSub    = document.getElementById('obCardSubtitle');
+    const obCardBody   = document.getElementById('obCardBody');
+    const obNextBtn    = document.getElementById('obNextBtn');
+    const obBackBtn    = document.getElementById('obBackBtn');
+    const obSkipBtn    = document.getElementById('obSkipBtn');
+    const obDots       = document.getElementById('obProgressDots');
+
+    const obTipStep  = document.getElementById('obTooltipStepLabel');
+    const obTipTitle = document.getElementById('obTooltipTitle');
+    const obTipBody  = document.getElementById('obTooltipBody');
+    const obTipNext  = document.getElementById('obTooltipNext');
+    const obTipBack  = document.getElementById('obTooltipBack');
+    const obTipSkip  = document.getElementById('obTooltipSkip');
+
+    function buildDots() {
+      if (!obDots) return;
+      obDots.innerHTML = '';
+      STEPS.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'ob-progress-dot' + (i < currentStep ? ' done' : i === currentStep ? ' active' : '');
+        obDots.appendChild(d);
+      });
+    }
+
+    function resolveTarget(step) {
+      if (!step.target) return null;
+      let el = document.querySelector(step.target);
+      if (!el) return null;
+      if (step.targetParent) el = el.closest('.bg-white, section, div') || el.parentElement || el;
+      return el;
+    }
+
+    function positionSpotlight(el) {
+      if (!el) return;
+      const pad = 8;
+      const r = el.getBoundingClientRect();
+      spotlight.style.top    = (r.top - pad) + 'px';
+      spotlight.style.left   = (r.left - pad) + 'px';
+      spotlight.style.width  = (r.width + pad * 2) + 'px';
+      spotlight.style.height = (r.height + pad * 2) + 'px';
+    }
+
+    function positionTooltip(el, pos) {
+      if (!el) return;
+      const r     = el.getBoundingClientRect();
+      const tW    = 380;
+      const gap   = 16;
+      let top, left;
+
+      if (pos === 'below') {
+        top  = r.bottom + gap;
+        left = Math.min(r.left, window.innerWidth - tW - 16);
+      } else if (pos === 'left') {
+        top  = r.top;
+        left = Math.max(8, r.left - tW - gap);
+      } else { // right
+        top  = r.top;
+        left = Math.min(r.right + gap, window.innerWidth - tW - 16);
+      }
+
+      // Clamp vertically
+      const ttH = 220;
+      top = Math.max(8, Math.min(top, window.innerHeight - ttH - 8));
+
+      tooltip.style.top  = top + 'px';
+      tooltip.style.left = left + 'px';
+    }
+
+    function showStep(idx) {
+      currentStep = Math.max(0, Math.min(idx, TOTAL_STEPS - 1));
+      const step = STEPS[currentStep];
+      buildDots();
+
+      if (step.type === 'card') {
+        // Show overlay card, hide spotlight/tooltip
+        overlay.classList.remove('ob-hidden');
+        spotlight.classList.add('ob-hidden');
+        tooltip.classList.add('ob-hidden');
+
+        obCardTitle.textContent = step.title;
+        obCardSub.textContent   = step.subtitle || '';
+        obCardBody.innerHTML    = step.body || '';
+
+        const isFirst = currentStep === 0;
+        const isLast  = currentStep === TOTAL_STEPS - 1;
+
+        if (obNextBtn) {
+          obNextBtn.textContent = isLast ? 'Start using the CRM ✓' : 'Next →';
+        }
+        if (obBackBtn) {
+          if (isFirst) obBackBtn.classList.add('hidden');
+          else         obBackBtn.classList.remove('hidden');
+        }
+
+      } else if (step.type === 'spotlight') {
+        // Hide overlay, show spotlight + tooltip
+        overlay.classList.add('ob-hidden');
+        spotlight.classList.remove('ob-hidden');
+        tooltip.classList.remove('ob-hidden');
+
+        const el = resolveTarget(step);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          setTimeout(() => {
+            positionSpotlight(el);
+            positionTooltip(el, step.pos || 'below');
+          }, 320);
+        }
+
+        if (obTipStep) obTipStep.textContent = currentStep + 1;
+        if (obTipTitle) obTipTitle.textContent = step.title;
+        if (obTipBody)  obTipBody.textContent  = step.body;
+        if (obTipNext)  obTipNext.textContent  = currentStep === TOTAL_STEPS - 1 ? 'Done ✓' : 'Next →';
+      }
+    }
+
+    function finishOnboarding() {
+      overlay.classList.add('ob-hidden');
+      spotlight.classList.add('ob-hidden');
+      tooltip.classList.add('ob-hidden');
+      try { localStorage.setItem(OB_KEY, '1'); } catch(e) {}
+    }
+
+    function advance() {
+      if (currentStep >= TOTAL_STEPS - 1) { finishOnboarding(); return; }
+      showStep(currentStep + 1);
+    }
+    function retreat() {
+      if (currentStep > 0) showStep(currentStep - 1);
+    }
+
+    // Button wiring
+    [obNextBtn].forEach(b => b && b.addEventListener('click', advance));
+    [obBackBtn, obTipBack].forEach(b => b && b.addEventListener('click', retreat));
+    [obSkipBtn, obTipSkip].forEach(b => b && b.addEventListener('click', finishOnboarding));
+    [obTipNext].forEach(b => b && b.addEventListener('click', advance));
+
+    // Keyboard nav during tour
+    document.addEventListener('keydown', (e) => {
+      if (overlay.classList.contains('ob-hidden') && tooltip.classList.contains('ob-hidden')) return;
+      if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); advance(); }
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); retreat(); }
+      if (e.key === 'Escape')     { finishOnboarding(); }
+    });
+
+    // Reposition on resize
+    window.addEventListener('resize', () => {
+      const step = STEPS[currentStep];
+      if (step && step.type === 'spotlight') {
+        const el = resolveTarget(step);
+        if (el) { positionSpotlight(el); positionTooltip(el, step.pos || 'below'); }
+      }
+    });
+
+    window.initOnboarding = function() {
+      let done = false;
+      try { done = !!localStorage.getItem(OB_KEY); } catch(e) {}
+      if (done) return;
+      showStep(0);
+    };
+
+    // Allow re-triggering onboarding from reset button
+    const resetBtn = document.getElementById('seedFullRosterBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        setTimeout(() => {
+          try { localStorage.removeItem(OB_KEY); } catch(e) {}
+        }, 600);
+      });
+    }
+  })();
   </script>
 </body>
 </html>
