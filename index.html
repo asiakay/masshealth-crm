@@ -114,6 +114,10 @@
           <span>💾 Backup/CSV</span>
         </button>
 
+        <button id="replayTourBtn" type="button" onclick="window.replayOnboardingTour && window.replayOnboardingTour()" class="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-500 text-xs font-semibold hover:bg-slate-50 shadow-2xs transition" title="Replay guided tour">
+          <span>? Tour</span>
+        </button>
+
         <button id="openAddFacilityModalBtn" type="button" class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-xs transition">
           <span>+ Add Facility</span>
         </button>
@@ -4289,7 +4293,7 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
                 <li>Use <em>📋 Packet Audit</em> before sending your first referral</li>
               </ol>
             </div>
-            <p class="text-center text-[11px] text-slate-400">This tour is stored in your browser. Reload anytime via the ↻ Reset button.</p>
+            <p class="text-center text-[11px] text-slate-400">Replay this tour anytime via the <strong class="text-slate-300">? Tour</strong> button in the top toolbar.</p>
           </div>`
       }
     ];
@@ -4464,15 +4468,10 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
       showStep(0);
     };
 
-    // Allow re-triggering onboarding from reset button
-    const resetBtn = document.getElementById('seedFullRosterBtn');
-    if (resetBtn) {
-      resetBtn.addEventListener('click', () => {
-        setTimeout(() => {
-          try { localStorage.removeItem(OB_KEY); } catch(e) {}
-        }, 600);
-      });
-    }
+    window.replayOnboardingTour = function() {
+      try { localStorage.removeItem(OB_KEY); } catch(e) {}
+      showStep(0);
+    };
   })();
   </script>
 </body>
