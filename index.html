@@ -344,6 +344,10 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                 </svg>
               </a>
+              <button id="startCallScriptBtn" type="button" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition shadow-xs border border-emerald-700 text-xs font-bold" title="Open guided call script [C]">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                <span>Script</span>
+              </button>
               <button id="intakeDisqualifyBtn" type="button" class="bg-rose-50 text-rose-700 hover:bg-rose-100 p-2 rounded-lg flex items-center justify-center transition shadow-2xs border border-rose-200" title="Eliminate facility [D]">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
@@ -3689,6 +3693,330 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
       renderFacilitiesList();
       initOnboarding();
     });
+  </script>
+
+  <!-- ============================================================
+       CALL SCRIPT FLOATING PANEL
+       ============================================================ -->
+  <style>
+    #callScriptPanel {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      z-index: 8000;
+      width: 340px;
+      background: #0f172a;
+      border-radius: 18px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      transform: translateY(120%);
+      transition: transform .3s cubic-bezier(.22,.68,0,1.2);
+      user-select: none;
+    }
+    #callScriptPanel.csp-open { transform: translateY(0); }
+
+    .csp-q-btn {
+      width: 100%; padding: 10px 14px;
+      border-radius: 10px; border: 2px solid transparent;
+      font-size: 13px; font-weight: 700;
+      cursor: pointer; text-align: left;
+      transition: background .15s, border-color .15s, transform .1s;
+      line-height: 1.3;
+    }
+    .csp-q-btn:active { transform: scale(.97); }
+    .csp-q-btn.opt-yes    { background:#052e16; color:#4ade80; border-color:#166534; }
+    .csp-q-btn.opt-yes:hover    { background:#14532d; border-color:#4ade80; }
+    .csp-q-btn.opt-maybe  { background:#451a03; color:#fbbf24; border-color:#92400e; }
+    .csp-q-btn.opt-maybe:hover  { background:#78350f; border-color:#fbbf24; }
+    .csp-q-btn.opt-no     { background:#450a0a; color:#f87171; border-color:#991b1b; }
+    .csp-q-btn.opt-no:hover     { background:#7f1d1d; border-color:#f87171; }
+    .csp-q-btn.opt-unknown{ background:#1e293b; color:#94a3b8; border-color:#334155; }
+    .csp-q-btn.opt-unknown:hover{ background:#334155; border-color:#94a3b8; }
+    .csp-q-btn.opt-selected { ring: 2px; box-shadow: inset 0 0 0 2px white; }
+
+    .csp-step-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #334155; transition: background .2s, transform .2s;
+    }
+    .csp-step-dot.active { background: #3b82f6; transform: scale(1.3); }
+    .csp-step-dot.done   { background: #10b981; }
+  </style>
+
+  <!-- The Panel -->
+  <div id="callScriptPanel" aria-label="Call Script Panel">
+    <!-- Drag Handle / Header -->
+    <div id="cspHeader" class="px-4 py-3 flex items-center justify-between cursor-grab active:cursor-grabbing select-none" style="background:rgba(255,255,255,.05)">
+      <div class="flex items-center space-x-2 min-w-0">
+        <span class="text-emerald-400 text-base leading-none">📞</span>
+        <div class="min-w-0">
+          <p id="cspFacilityName" class="text-white font-bold text-xs truncate leading-tight"></p>
+          <p id="cspFacilityPhone" class="text-slate-400 font-mono text-[10px] leading-tight"></p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2 flex-shrink-0">
+        <!-- Step dots -->
+        <div class="flex items-center space-x-1.5" id="cspStepDots">
+          <div class="csp-step-dot active" data-dot="0"></div>
+          <div class="csp-step-dot" data-dot="1"></div>
+          <div class="csp-step-dot" data-dot="2"></div>
+        </div>
+        <button id="cspClose" class="text-slate-500 hover:text-white text-lg leading-none ml-1" title="Close">✕</button>
+      </div>
+    </div>
+
+    <!-- Step Body -->
+    <div class="px-4 pb-4 pt-3 space-y-3">
+
+      <!-- Step label -->
+      <div class="flex items-center justify-between">
+        <span id="cspStepLabel" class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400"></span>
+        <button id="cspBackBtn" class="text-[10px] text-slate-500 hover:text-slate-300 hidden">← Back</button>
+      </div>
+
+      <!-- Q1: MH Pending -->
+      <div id="cspStep0" class="space-y-2">
+        <p class="text-white font-bold text-sm leading-snug">"Do you accept LTC applicants with <span class="text-emerald-400">MassHealth pending</span>?"</p>
+        <div class="space-y-1.5">
+          <button class="csp-q-btn opt-yes"    data-q="pending" data-val="YES">✓ YES — Direct Pending Accepted</button>
+          <button class="csp-q-btn opt-maybe"  data-q="pending" data-val="CASE_BY_CASE">⚖️ Case-by-Case / Under Review</button>
+          <button class="csp-q-btn opt-no"     data-q="pending" data-val="NO">✕ NO — Strict Policy</button>
+          <button class="csp-q-btn opt-unknown" data-q="pending" data-val="UNKNOWN">? Unknown — Needs Follow-Up</button>
+        </div>
+      </div>
+
+      <!-- Q2: Bed Available -->
+      <div id="cspStep1" class="space-y-2 hidden">
+        <p class="text-white font-bold text-sm leading-snug">"Is there an appropriate LTC bed <span class="text-blue-400">open now</span>?"</p>
+        <div class="space-y-1.5">
+          <button class="csp-q-btn opt-yes"     data-q="bed" data-val="YES">🛏️ YES — Available Now</button>
+          <button class="csp-q-btn opt-maybe"   data-q="bed" data-val="WAITLIST">⏳ Waitlist — Estimated Wait</button>
+          <button class="csp-q-btn opt-no"      data-q="bed" data-val="NO">✕ NO — No Beds Available</button>
+          <button class="csp-q-btn opt-unknown" data-q="bed" data-val="UNKNOWN">? Unknown — Will Check</button>
+        </div>
+      </div>
+
+      <!-- Q3: Contact & Gatekeepers -->
+      <div id="cspStep2" class="space-y-3 hidden">
+        <p class="text-white font-bold text-sm leading-snug">"Who handles pending intakes — and what's the <span class="text-purple-400">direct fax or email</span>?"</p>
+        <div class="space-y-2">
+          <input id="cspContactName"  type="text" placeholder="Contact name & title (e.g. Linda Smith, Dir)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-xs outline-none focus:border-blue-500 transition">
+          <input id="cspContactEmail" type="text" placeholder="Direct fax or email (intake@facility.org)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-xs outline-none focus:border-blue-500 transition">
+        </div>
+        <!-- Gatekeepers -->
+        <div class="bg-slate-800/60 rounded-xl p-3 space-y-1.5 border border-slate-700">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Business Office Requirements:</span>
+          <label class="flex items-center space-x-2.5 cursor-pointer">
+            <input id="cspCheckAsset" type="checkbox" class="rounded text-blue-500 focus:ring-blue-500 h-3.5 w-3.5">
+            <span class="text-slate-300 text-[11px]">3-month asset verification required</span>
+          </label>
+          <label class="flex items-center space-x-2.5 cursor-pointer">
+            <input id="cspCheckSc1" type="checkbox" class="rounded text-blue-500 focus:ring-blue-500 h-3.5 w-3.5">
+            <span class="text-slate-300 text-[11px]">MassHealth SC-1 electronic receipt required</span>
+          </label>
+          <label class="flex items-center space-x-2.5 cursor-pointer">
+            <input id="cspCheckPasrr" type="checkbox" class="rounded text-blue-500 focus:ring-blue-500 h-3.5 w-3.5">
+            <span class="text-slate-300 text-[11px]">Active PASRR Level 1 required on file</span>
+          </label>
+        </div>
+        <!-- Quick note -->
+        <textarea id="cspNotes" rows="2" placeholder="Quick note (PPA commitment, rejection reason, next step...)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-xs outline-none focus:border-blue-500 resize-none transition"></textarea>
+        <!-- Save -->
+        <button id="cspSaveBtn" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-extrabold text-sm transition shadow-lg flex items-center justify-center space-x-2">
+          <svg class="w-4 h-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span>Save &amp; Done</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  // ============================================================
+  // CALL SCRIPT FLOATING PANEL ENGINE
+  // ============================================================
+  (function() {
+    const panel      = document.getElementById('callScriptPanel');
+    const header     = document.getElementById('cspHeader');
+    const closeBtn   = document.getElementById('cspClose');
+    const backBtn    = document.getElementById('cspBackBtn');
+    const saveBtn    = document.getElementById('cspSaveBtn');
+    const stepLabel  = document.getElementById('cspStepLabel');
+    const dots       = document.querySelectorAll('.csp-step-dot');
+    const steps      = [
+      document.getElementById('cspStep0'),
+      document.getElementById('cspStep1'),
+      document.getElementById('cspStep2')
+    ];
+    const LABELS = ['Step 1 of 3 — MH Pending Policy', 'Step 2 of 3 — Bed Availability', 'Step 3 of 3 — Contact & Gatekeepers'];
+
+    let currentCSPStep = 0;
+    let cspAnswers = { pending: null, bed: null };
+
+    // --- Drag-to-reposition ---
+    let dragging = false, dragOffX = 0, dragOffY = 0;
+    header.addEventListener('mousedown', e => {
+      dragging = true;
+      const r = panel.getBoundingClientRect();
+      dragOffX = e.clientX - r.left;
+      dragOffY = e.clientY - r.top;
+      panel.style.transition = 'none';
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      panel.style.left = (e.clientX - dragOffX) + 'px';
+      panel.style.top  = (e.clientY - dragOffY) + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      dragging = false;
+      panel.style.transition = '';
+    });
+
+    function goToStep(n) {
+      currentCSPStep = Math.max(0, Math.min(n, 2));
+      steps.forEach((s, i) => s.classList.toggle('hidden', i !== currentCSPStep));
+      dots.forEach((d, i) => {
+        d.classList.toggle('active', i === currentCSPStep);
+        d.classList.toggle('done',   i < currentCSPStep);
+        d.classList.remove('active');
+        if (i < currentCSPStep) d.classList.add('done');
+        else if (i === currentCSPStep) d.classList.add('active');
+        else { d.classList.remove('done'); }
+      });
+      stepLabel.textContent = LABELS[currentCSPStep];
+      backBtn.classList.toggle('hidden', currentCSPStep === 0);
+    }
+
+    function openPanel() {
+      // Populate facility info from main app state
+      const name  = document.getElementById('intakeFacilityName')?.textContent || '—';
+      const phone = document.getElementById('intakeCallLink')?.getAttribute('href')?.replace('tel:','') || '—';
+      document.getElementById('cspFacilityName').textContent  = name;
+      document.getElementById('cspFacilityPhone').textContent = phone || 'No phone on file';
+
+      // Reset state
+      cspAnswers = { pending: null, bed: null };
+      document.getElementById('cspContactName').value  = document.getElementById('inputContactName')?.value || '';
+      document.getElementById('cspContactEmail').value = document.getElementById('inputContactEmail')?.value || '';
+      document.getElementById('cspCheckAsset').checked = document.getElementById('checkAssetPrescreen')?.checked || false;
+      document.getElementById('cspCheckSc1').checked   = document.getElementById('checkAppReceipt')?.checked || false;
+      document.getElementById('cspCheckPasrr').checked = document.getElementById('checkPasrrLevel')?.checked || false;
+      document.getElementById('cspNotes').value        = '';
+
+      // Reset button highlights
+      document.querySelectorAll('.csp-q-btn').forEach(b => b.style.boxShadow = '');
+
+      // Reset position to bottom-right corner
+      panel.style.left = ''; panel.style.top = '';
+      panel.style.right = '24px'; panel.style.bottom = '24px';
+
+      goToStep(0);
+      panel.classList.add('csp-open');
+    }
+
+    function closePanel() {
+      panel.classList.remove('csp-open');
+    }
+
+    // Q-button clicks
+    panel.addEventListener('click', e => {
+      const btn = e.target.closest('.csp-q-btn');
+      if (!btn) return;
+      const q   = btn.dataset.q;
+      const val = btn.dataset.val;
+
+      // Highlight selection within this group
+      panel.querySelectorAll(`.csp-q-btn[data-q="${q}"]`).forEach(b => b.style.boxShadow = '');
+      btn.style.boxShadow = 'inset 0 0 0 2px white';
+
+      cspAnswers[q] = val;
+
+      // Auto-advance after a brief visual beat
+      if (q === 'pending') setTimeout(() => goToStep(1), 320);
+      if (q === 'bed')     setTimeout(() => goToStep(2), 320);
+    });
+
+    // Back button
+    backBtn.addEventListener('click', () => goToStep(currentCSPStep - 1));
+
+    // Save
+    saveBtn.addEventListener('click', () => {
+      // Write back to main form fields
+      const syncVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el && val) el.value = val;
+      };
+      const syncCheck = (id, bool) => {
+        const el = document.getElementById(id);
+        if (el) el.checked = bool;
+      };
+
+      // Q1: pending policy
+      if (cspAnswers.pending) {
+        document.querySelectorAll('.pending-btn').forEach(b => {
+          const isActive = b.dataset.val === cspAnswers.pending;
+          b.classList.toggle('bg-emerald-100', isActive && cspAnswers.pending === 'YES');
+          b.classList.toggle('text-emerald-800', isActive && cspAnswers.pending === 'YES');
+          b.classList.toggle('border-emerald-400', isActive && cspAnswers.pending === 'YES');
+          b.classList.toggle('bg-rose-100', isActive && cspAnswers.pending === 'NO');
+          b.classList.toggle('text-rose-800', isActive && cspAnswers.pending === 'NO');
+          b.classList.toggle('border-rose-400', isActive && cspAnswers.pending === 'NO');
+        });
+      }
+      // Q2: bed
+      if (cspAnswers.bed) {
+        document.querySelectorAll('.bed-btn').forEach(b => {
+          b.classList.toggle('bg-emerald-100', b.dataset.bed === cspAnswers.bed && cspAnswers.bed === 'YES');
+          b.classList.toggle('border-emerald-400', b.dataset.bed === cspAnswers.bed && cspAnswers.bed === 'YES');
+          b.classList.toggle('text-emerald-800', b.dataset.bed === cspAnswers.bed && cspAnswers.bed === 'YES');
+        });
+      }
+      // Q3 contact fields
+      syncVal('inputContactName',  document.getElementById('cspContactName').value);
+      syncVal('inputContactEmail', document.getElementById('cspContactEmail').value);
+      syncCheck('checkAssetPrescreen', document.getElementById('cspCheckAsset').checked);
+      syncCheck('checkAppReceipt',     document.getElementById('cspCheckSc1').checked);
+      syncCheck('checkPasrrLevel',     document.getElementById('cspCheckPasrr').checked);
+
+      // Append call note to operational notes
+      const note = document.getElementById('cspNotes').value.trim();
+      const mainNotes = document.getElementById('inputNotes');
+      if (note && mainNotes) {
+        const ts = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        mainNotes.value = (mainNotes.value ? mainNotes.value + '\n' : '') + `[${ts}] ${note}`;
+      }
+
+      // Fire the main form save
+      document.getElementById('intakeForm')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+      closePanel();
+
+      // Show confirmation
+      if (typeof showToast === 'function') {
+        const q1 = { YES:'✓ Pending: YES', CASE_BY_CASE:'⚖️ Case-by-Case', NO:'✕ NO', UNKNOWN:'? Unknown' }[cspAnswers.pending] || '';
+        const q2 = { YES:'Bed Open', WAITLIST:'Waitlist', NO:'No Bed', UNKNOWN:'?' }[cspAnswers.bed] || '';
+        showToast(`Call logged — ${q1} · ${q2}`);
+      }
+    });
+
+    // Close button & Escape key
+    closeBtn.addEventListener('click', closePanel);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && panel.classList.contains('csp-open')) closePanel();
+      if (e.key === 'c' && !e.ctrlKey && !e.metaKey && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+        panel.classList.contains('csp-open') ? closePanel() : openPanel();
+      }
+    });
+
+    // Wire trigger button
+    document.addEventListener('click', e => {
+      if (e.target.closest('#startCallScriptBtn')) openPanel();
+    });
+
+    // Expose for external use
+    window.openCallScriptPanel = openPanel;
+  })();
   </script>
 
   <!-- ============================================================
