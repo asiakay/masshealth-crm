@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MassHealth SNF Placement Intelligence & Admissions CRM</title>
-  <!-- D1 Worker URL — set this after running: cd worker && npx wrangler deploy -->
-  <!-- <script>window.MASSHEALTH_WORKER_URL = 'https://masshealth-crm-api.YOUR-ACCOUNT.workers.dev';</script> -->
+  <!-- D1 Worker URL and write token — set WRITE_TOKEN via: cd worker && npx wrangler secret put WRITE_TOKEN -->
+  <script>
+    window.MASSHEALTH_WORKER_URL = 'https://masshealth-crm-api.asialakaygrady-6d4.workers.dev';
+    window.MASSHEALTH_WRITE_TOKEN = ''; // paste WRITE_TOKEN value here after running: wrangler secret put WRITE_TOKEN
+  </script>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter & JetBrains Mono -->
@@ -2039,9 +2042,18 @@ Every day my parent remains in your acute hospital bed costs your institution th
     };
 
     // ── D1 Persistence Layer ───────────────────────────────────────────────
-    // After deploying worker/, set this to your Worker URL:
-    //   cd worker && npx wrangler deploy
     const WORKER_URL = (window.MASSHEALTH_WORKER_URL || '').replace(/\/$/, '');
+
+    // Show a visible warning if sync is disabled so it can't silently regress
+    if (!WORKER_URL) {
+      document.addEventListener('DOMContentLoaded', () => {
+        const banner = document.createElement('div');
+        banner.id = 'no-d1-banner';
+        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#dc2626;color:#fff;font-family:monospace;font-size:13px;padding:8px 16px;text-align:center';
+        banner.textContent = '⚠ D1 sync disabled — data lives only in this browser. Set MASSHEALTH_WORKER_URL to persist.';
+        document.body.prepend(banner);
+      });
+    }
 
     let _d1SyncTimer = null;
     function scheduleD1Sync() {
@@ -2053,7 +2065,10 @@ Every day my parent remains in your acute hospital bed costs your institution th
     async function d1Fetch(path, method = 'GET', body) {
       if (!WORKER_URL) return null;
       try {
-        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        const headers = { 'Content-Type': 'application/json' };
+        const token = (window.MASSHEALTH_WRITE_TOKEN || '').trim();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const opts = { method, headers };
         if (body !== undefined) opts.body = JSON.stringify(body);
         const res = await fetch(WORKER_URL + path, opts);
         if (!res.ok) throw new Error(`D1 ${method} ${path} → ${res.status}`);

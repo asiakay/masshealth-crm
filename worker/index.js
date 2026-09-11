@@ -1,8 +1,21 @@
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
+
+// When WRITE_TOKEN is set in env, all endpoints require Bearer auth.
+// When unset (local dev), all requests pass through.
+function requireAuth(request, env) {
+  if (!env.WRITE_TOKEN) return null;
+  const header = request.headers.get('Authorization') ?? '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (token === env.WRITE_TOKEN) return null;
+  return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    status: 401,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json', 'WWW-Authenticate': 'Bearer' },
+  });
+}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -191,6 +204,9 @@ export default {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
+
+    const authError = requireAuth(request, env);
+    if (authError) return authError;
 
     const url = new URL(request.url);
     const path = url.pathname;
