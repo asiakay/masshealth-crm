@@ -1547,6 +1547,35 @@ Every day my parent remains in your acute hospital bed costs your institution th
           tb_test: true,
           vaccine_card: false
         }
+      },
+      // SAMPLE DATA — synthetic record; no real person, court, or docket.
+      // Demonstrates a guardianship filing correction event. Docket: SAMPLE-0000-GD
+      {
+        id: "case-sample-gd",
+        name: "Martin C. (74M - TBI, Guardianship Filing Correction)",
+        gender: "Male",
+        preferred_region: "Greater Boston",
+        needs_memory_care: true,
+        needs_bariatric: false,
+        needs_trach: false,
+        needs_wound_vac: false,
+        ss_income: 1540,
+        pension_income: 0,
+        medigap_premium: 174.70,
+        placement_stage: "GATHERING_INFO",
+        notes: "SAMPLE-0000-GD — Guardianship petition filed in fictitious court (SAMPLE COUNTY PROBATE, no real jurisdiction). Correction needed: petitioner named as sole guardian without co-guardian rider; amended petition to add healthcare proxy co-guardianship clause filed [DATE REDACTED]. Docket SAMPLE-0000-GD is synthetic — for testing/demo only.",
+        packet_checklist: {
+          sc1_app: false,
+          tracking_num: false,
+          bank_statements: true,
+          ppa_assignment: false,
+          pasrr_level1: false,
+          hcp_dpoa: false, // HCP/DPOA superseded by guardianship order pending correction
+          hp_mar: false,
+          pt_eval: false,
+          tb_test: false,
+          vaccine_card: false
+        }
       }
     ];
 
