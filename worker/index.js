@@ -4,9 +4,12 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// When WRITE_TOKEN is set in env, all endpoints require Bearer auth.
-// When unset (local dev), all requests pass through.
-function requireAuth(request, env) {
+// GETs are open (frontend reads its own data from a static page — token can't live in the browser).
+// POST/PUT/PATCH require Bearer auth when WRITE_TOKEN is set in env.
+// When WRITE_TOKEN is unset (local dev), all writes pass through.
+function requireWriteAuth(request, env) {
+  const method = request.method;
+  if (method === 'GET' || method === 'OPTIONS' || method === 'HEAD') return null;
   if (!env.WRITE_TOKEN) return null;
   const header = request.headers.get('Authorization') ?? '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -205,7 +208,7 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
-    const authError = requireAuth(request, env);
+    const authError = requireWriteAuth(request, env);
     if (authError) return authError;
 
     const url = new URL(request.url);
