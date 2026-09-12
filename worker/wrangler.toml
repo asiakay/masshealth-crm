@@ -6,3 +6,8 @@ compatibility_date = "2024-09-23"
 binding = "DB"
 database_name = "masshealth-crm-db"
 database_id = "fa1bf5f6-6321-4123-8a38-f23e5f649ad7"
+
+[[d1_databases]]
+binding = "DEMO_DB"
+database_name = "masshealth-crm-demo-db"
+database_id = "940f410a-76d1-485f-89bc-29b9dd19e66d"
