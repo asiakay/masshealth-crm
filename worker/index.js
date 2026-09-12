@@ -4,20 +4,14 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// GETs are open (frontend reads its own data from a static page — token can't live in the browser).
-// POST/PUT/PATCH require Bearer auth when WRITE_TOKEN is set in env.
-// When WRITE_TOKEN is unset (local dev), all writes pass through.
-function requireWriteAuth(request, env) {
-  const method = request.method;
-  if (method === 'GET' || method === 'OPTIONS' || method === 'HEAD') return null;
-  if (!env.WRITE_TOKEN) return null;
+// Returns true if the request is authenticated via CF Access or WRITE_TOKEN bearer.
+// Unauthenticated requests are routed to the public DEMO_DB instead of the real DB.
+function isAuthenticated(request, env) {
+  if (request.headers.get('Cf-Access-Authenticated-User-Email')) return true;
+  if (!env.WRITE_TOKEN) return false;
   const header = request.headers.get('Authorization') ?? '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (token === env.WRITE_TOKEN) return null;
-  return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-    status: 401,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json', 'WWW-Authenticate': 'Bearer' },
-  });
+  return token === env.WRITE_TOKEN;
 }
 
 function json(data, status = 200) {
@@ -155,11 +149,9 @@ async function addCallLog(db, facilityId, log) {
 // ── Repatriation ───────────────────────────────────────────────────────────
 
 async function getRepatriation(db) {
-  // Stored as a single JSON doc with key = patient_id
   const { results } = await db
     .prepare("SELECT patient_id, stage, status, notes, completed_at FROM repatriation_progress ORDER BY patient_id, stage")
     .all();
-  // Reconstruct the flat {stageNum: bool} object the app uses per patient
   const byPatient = {};
   for (const r of results) {
     if (!byPatient[r.patient_id]) byPatient[r.patient_id] = {};
@@ -169,7 +161,6 @@ async function getRepatriation(db) {
 }
 
 async function saveRepatriation(db, repatObj) {
-  // repatObj is { [patientId]: { [stageNum]: bool } }
   for (const [patientId, stages] of Object.entries(repatObj)) {
     for (const [stage, complete] of Object.entries(stages)) {
       await db.prepare(`
@@ -208,13 +199,20 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
-    const authError = requireWriteAuth(request, env);
-    if (authError) return authError;
+    const authenticated = isAuthenticated(request, env);
+    const db = authenticated ? env.DB : env.DEMO_DB;
 
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
-    const db = env.DB;
+
+    // Block writes in demo mode (unauthenticated requests use DEMO_DB, read-only)
+    if (!authenticated && method !== 'GET' && method !== 'HEAD') {
+      return new Response(
+        JSON.stringify({ error: 'Demo mode: authenticate to perform write operations' }),
+        { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+      );
+    }
 
     try {
       // GET /api/state — full pooled state
@@ -338,7 +336,6 @@ export default {
             b.follow_up_date ?? null,
           ).run();
 
-          // progress event
           if (b.patient_id) {
             await db.prepare(`
               INSERT INTO progress_events (patient_id, facility_id, event_type, new_value)
@@ -367,7 +364,6 @@ export default {
           id,
         ).run();
 
-        // progress event
         const row = await db.prepare('SELECT patient_id, facility_id FROM email_outreach WHERE id = ?').bind(id).first();
         if (row?.patient_id) {
           await db.prepare(`
