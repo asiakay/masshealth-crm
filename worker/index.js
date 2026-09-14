@@ -345,11 +345,27 @@ async function handleAuth(path, request, env) {
   }
 
   if (path === '/api/auth/register' && method === 'POST') {
+    // If any credential already exists, require an authenticated session so
+    // a random caller cannot take over the account after initial setup.
+    const countRow = await env.DB.prepare('SELECT COUNT(*) as n FROM webauthn_credentials').first().catch(() => null);
+    if ((countRow?.n ?? 0) > 0 && !(await isAuthenticated(request, env))) {
+      return err('Already registered — authenticate to add another passkey', 403);
+    }
+
     const body = await request.json();
 
+    // Resolve the challenge from the submitted clientDataJSON rather than
+    // blindly picking the newest row, so concurrent sessions don't consume
+    // each other's challenges.
+    let submittedChallenge;
+    try {
+      const cd = JSON.parse(new TextDecoder().decode(base64urlToUint8(body.response?.clientDataJSON ?? '')));
+      submittedChallenge = cd.challenge;
+    } catch (e) { return err('Invalid clientDataJSON', 400); }
+
     const challenge = await env.DB.prepare(
-      "SELECT id, origin FROM challenges WHERE type = 'registration' ORDER BY created_at DESC LIMIT 1"
-    ).first();
+      "SELECT id, origin FROM challenges WHERE id = ? AND type = 'registration'"
+    ).bind(submittedChallenge).first();
     if (!challenge) return err('No pending registration challenge — try again', 400);
     await env.DB.prepare('DELETE FROM challenges WHERE id = ?').bind(challenge.id).run();
 
@@ -406,9 +422,16 @@ async function handleAuth(path, request, env) {
   if (path === '/api/auth/login' && method === 'POST') {
     const body = await request.json();
 
+    // Look up the exact challenge the client submitted, not the newest row.
+    let submittedChallenge;
+    try {
+      const cd = JSON.parse(new TextDecoder().decode(base64urlToUint8(body.response?.clientDataJSON ?? '')));
+      submittedChallenge = cd.challenge;
+    } catch (e) { return err('Invalid clientDataJSON', 400); }
+
     const challenge = await env.DB.prepare(
-      "SELECT id, origin FROM challenges WHERE type = 'authentication' ORDER BY created_at DESC LIMIT 1"
-    ).first();
+      "SELECT id, origin FROM challenges WHERE id = ? AND type = 'authentication'"
+    ).bind(submittedChallenge).first();
     if (!challenge) return err('No pending authentication challenge — try again', 400);
     await env.DB.prepare('DELETE FROM challenges WHERE id = ?').bind(challenge.id).run();
 
@@ -430,6 +453,12 @@ async function handleAuth(path, request, env) {
     } catch (e) { return err(`Authentication failed: ${e.message}`, 401); }
 
     if (!result.verified) return err('Authentication not verified', 401);
+
+    // Reject a repeated or decreasing counter — sign of a cloned credential.
+    // Exception: authenticators that always report 0 are allowed.
+    if (result.newCounter !== 0 && result.newCounter <= cred.sign_count) {
+      return err('Authenticator counter did not increase — possible credential clone', 401);
+    }
 
     await env.DB.prepare('UPDATE webauthn_credentials SET sign_count = ? WHERE id = ?').bind(result.newCounter, cred.id).run();
 
