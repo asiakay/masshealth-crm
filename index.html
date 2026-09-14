@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MassHealth SNF Placement Intelligence & Admissions CRM</title>
-  <!-- D1 Worker URL and write token — set WRITE_TOKEN via: cd worker && npx wrangler secret put WRITE_TOKEN -->
+  <!-- Worker URL — session token loaded from localStorage after passkey login (never hardcoded) -->
   <script>
     window.MASSHEALTH_WORKER_URL = 'https://masshealth-crm-api.asialakaygrady-6d4.workers.dev';
-    window.MASSHEALTH_WRITE_TOKEN = '08a651ec32e5b496a0b42ac80b13cf93f8fa5e8d29ac9b64e6b1e363de3b695f'; // paste WRITE_TOKEN value here after running: wrangler secret put WRITE_TOKEN
+    window.MASSHEALTH_WRITE_TOKEN = '';
+    try { const t = localStorage.getItem('masshealth_session'); if (t) window.MASSHEALTH_WRITE_TOKEN = t; } catch(e) {}
   </script>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -63,6 +64,32 @@
   </style>
 </head>
 <body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-blue-200">
+
+  <!-- Passkey Login Overlay -->
+  <div id="loginOverlay" class="fixed inset-0 z-[9999] flex items-center justify-center hidden" style="background:rgba(15,23,42,0.92);backdrop-filter:blur(8px)">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 text-center">
+      <div class="w-16 h-16 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">🔐</div>
+      <h2 class="text-xl font-extrabold text-slate-900 mb-1">MassHealth CRM</h2>
+      <p id="loginSubtitle" class="text-sm text-slate-500 mb-6">Sign in to access your data</p>
+
+      <button id="passkeyActionBtn" type="button"
+        class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-sm">
+        <span id="passkeyBtnIcon">🔑</span>
+        <span id="passkeyBtnLabel">Sign in with passkey</span>
+      </button>
+
+      <div id="loginError" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 text-left hidden"></div>
+
+      <p id="loginDemoNote" class="mt-5 text-[11px] text-slate-400">
+        Viewing demo data until you sign in.
+      </p>
+
+      <button id="loginDemoBtn" type="button"
+        class="mt-2 text-[11px] text-slate-400 underline hover:text-slate-600 transition-colors">
+        Continue with demo data →
+      </button>
+    </div>
+  </div>
 
   <!-- Top System Header -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
@@ -125,6 +152,14 @@
 
         <button id="openAddFacilityModalBtn" type="button" class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-xs transition">
           <span>+ Add Facility</span>
+        </button>
+
+        <!-- Auth status chip -->
+        <button id="authStatusBtn" type="button"
+          class="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold shadow-2xs transition hidden"
+          title="Sign in / out">
+          <span id="authStatusIcon">🔒</span>
+          <span id="authStatusLabel">Demo</span>
         </button>
       </div>
     </div>
@@ -4990,6 +5025,271 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
       try { localStorage.removeItem(OB_KEY); } catch(e) {}
       showStep(0);
     };
+  })();
+  </script>
+
+  <!-- ── Passkey auth ─────────────────────────────────────────────────── -->
+  <script>
+  (function() {
+    'use strict';
+    const SESSION_KEY = 'masshealth_session';
+    const WORKER = (window.MASSHEALTH_WORKER_URL || '').replace(/\/$/, '');
+
+    // ── ArrayBuffer ↔ base64url helpers ───────────────────────────────────
+    function buf2b64url(buf) {
+      const bytes = new Uint8Array(buf);
+      let str = '';
+      for (const b of bytes) str += String.fromCharCode(b);
+      return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+    function b64url2buf(str) {
+      const s = str.replace(/-/g, '+').replace(/_/g, '/');
+      const pad = (4 - s.length % 4) % 4;
+      const bin = atob(s + '='.repeat(pad));
+      const buf = new ArrayBuffer(bin.length);
+      const view = new Uint8Array(buf);
+      for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
+      return buf;
+    }
+
+    // ── WebAuthn browser helpers (no external library needed) ─────────────
+    async function startRegistration(optionsJSON) {
+      const pubKey = {
+        ...optionsJSON,
+        challenge: b64url2buf(optionsJSON.challenge),
+        user: { ...optionsJSON.user, id: b64url2buf(optionsJSON.user.id) },
+        excludeCredentials: (optionsJSON.excludeCredentials || []).map(c => ({
+          ...c, id: b64url2buf(c.id),
+        })),
+      };
+      const cred = await navigator.credentials.create({ publicKey: pubKey });
+      return {
+        id: cred.id,
+        rawId: buf2b64url(cred.rawId),
+        type: cred.type,
+        authenticatorAttachment: cred.authenticatorAttachment,
+        clientExtensionResults: cred.getClientExtensionResults(),
+        response: {
+          clientDataJSON: buf2b64url(cred.response.clientDataJSON),
+          attestationObject: buf2b64url(cred.response.attestationObject),
+          transports: cred.response.getTransports ? cred.response.getTransports() : [],
+        },
+      };
+    }
+
+    async function startAuthentication(optionsJSON) {
+      const pubKey = {
+        ...optionsJSON,
+        challenge: b64url2buf(optionsJSON.challenge),
+        allowCredentials: (optionsJSON.allowCredentials || []).map(c => ({
+          ...c, id: b64url2buf(c.id),
+        })),
+      };
+      const cred = await navigator.credentials.get({ publicKey: pubKey });
+      return {
+        id: cred.id,
+        rawId: buf2b64url(cred.rawId),
+        type: cred.type,
+        authenticatorAttachment: cred.authenticatorAttachment,
+        clientExtensionResults: cred.getClientExtensionResults(),
+        response: {
+          clientDataJSON: buf2b64url(cred.response.clientDataJSON),
+          authenticatorData: buf2b64url(cred.response.authenticatorData),
+          signature: buf2b64url(cred.response.signature),
+          userHandle: cred.response.userHandle ? buf2b64url(cred.response.userHandle) : null,
+        },
+      };
+    }
+
+    // ── Token / session helpers ────────────────────────────────────────────
+    function getToken() {
+      try { return localStorage.getItem(SESSION_KEY) || ''; } catch { return ''; }
+    }
+    function saveToken(t) {
+      try {
+        localStorage.setItem(SESSION_KEY, t);
+        window.MASSHEALTH_WRITE_TOKEN = t;
+      } catch {}
+    }
+    function clearToken() {
+      try {
+        localStorage.removeItem(SESSION_KEY);
+        window.MASSHEALTH_WRITE_TOKEN = '';
+      } catch {}
+    }
+
+    async function checkMe() {
+      if (!WORKER) return false;
+      const token = getToken();
+      if (!token) return false;
+      try {
+        const res = await fetch(WORKER + '/api/auth/me', {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        return (await res.json()).authenticated === true;
+      } catch { return false; }
+    }
+
+    async function getSetupStatus() {
+      if (!WORKER) return { hasCredentials: false };
+      try {
+        const res = await fetch(WORKER + '/api/auth/setup-status');
+        return await res.json();
+      } catch { return { hasCredentials: false }; }
+    }
+
+    // ── UI helpers ────────────────────────────────────────────────────────
+    function setHeaderAuth(authenticated) {
+      const btn = document.getElementById('authStatusBtn');
+      if (!btn) return;
+      btn.classList.remove('hidden');
+      if (authenticated) {
+        btn.className = btn.className.replace(/bg-\S+|border-\S+|text-\S+/g, '').trim();
+        btn.classList.add('bg-green-50', 'border-green-300', 'text-green-800');
+        document.getElementById('authStatusIcon').textContent = '✅';
+        document.getElementById('authStatusLabel').textContent = 'Signed in';
+      } else {
+        btn.className = btn.className.replace(/bg-\S+|border-\S+|text-\S+/g, '').trim();
+        btn.classList.add('bg-amber-50', 'border-amber-300', 'text-amber-800');
+        document.getElementById('authStatusIcon').textContent = '🔒';
+        document.getElementById('authStatusLabel').textContent = 'Demo mode';
+      }
+    }
+
+    function dismissOverlay() {
+      const ov = document.getElementById('loginOverlay');
+      if (ov) ov.classList.add('hidden');
+    }
+
+    // ── Main auth init ─────────────────────────────────────────────────────
+    async function initAuth() {
+      if (!WORKER) return; // no worker configured — skip
+
+      const already = await checkMe();
+      setHeaderAuth(already);
+      if (already) return; // logged in, nothing to do
+
+      // Not authenticated — show overlay
+      const overlay = document.getElementById('loginOverlay');
+      if (!overlay) return;
+      overlay.classList.remove('hidden');
+
+      const { hasCredentials } = await getSetupStatus();
+
+      const btn        = document.getElementById('passkeyActionBtn');
+      const btnIcon    = document.getElementById('passkeyBtnIcon');
+      const btnLabel   = document.getElementById('passkeyBtnLabel');
+      const subtitle   = document.getElementById('loginSubtitle');
+      const errorEl    = document.getElementById('loginError');
+      const demoBtn    = document.getElementById('loginDemoBtn');
+
+      if (!hasCredentials) {
+        subtitle.textContent = 'First time? Set up a passkey to secure your data.';
+        btnIcon.textContent  = '➕';
+        btnLabel.textContent = 'Set up passkey';
+      }
+
+      function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.classList.remove('hidden');
+      }
+      function hideError() { errorEl.classList.add('hidden'); }
+
+      btn.addEventListener('click', async () => {
+        hideError();
+        btn.disabled = true;
+        const orig = btnLabel.textContent;
+        btnLabel.textContent = hasCredentials ? 'Signing in…' : 'Setting up…';
+
+        try {
+          let sessionToken;
+          if (!hasCredentials) {
+            const opts = await fetch(WORKER + '/api/auth/registration-options').then(r => r.json());
+            const resp = await startRegistration(opts);
+            const result = await fetch(WORKER + '/api/auth/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(resp),
+            }).then(r => r.json());
+            if (!result.verified) throw new Error(result.error || 'Registration failed');
+            sessionToken = result.sessionToken;
+          } else {
+            const opts = await fetch(WORKER + '/api/auth/authentication-options').then(r => r.json());
+            const resp = await startAuthentication(opts);
+            const result = await fetch(WORKER + '/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(resp),
+            }).then(r => r.json());
+            if (!result.verified) throw new Error(result.error || 'Authentication failed');
+            sessionToken = result.sessionToken;
+          }
+
+          saveToken(sessionToken);
+          setHeaderAuth(true);
+          dismissOverlay();
+          // Reload data with real credentials
+          window.location.reload();
+        } catch (e) {
+          const msg = String(e?.message ?? e);
+          if (msg.includes('NotAllowedError') || msg.toLowerCase().includes('cancel')) {
+            showError('Passkey dismissed — try again.');
+          } else {
+            showError(msg);
+          }
+          btn.disabled = false;
+          btnLabel.textContent = orig;
+        }
+      });
+
+      // Logout (auth status button in toolbar)
+      const authBtn = document.getElementById('authStatusBtn');
+      if (authBtn) {
+        authBtn.addEventListener('click', async () => {
+          const token = getToken();
+          if (token) {
+            fetch(WORKER + '/api/auth/logout', {
+              method: 'POST',
+              headers: { Authorization: 'Bearer ' + token },
+            }).catch(() => {});
+          }
+          clearToken();
+          window.location.reload();
+        });
+      }
+
+      // "Continue with demo" skips login
+      if (demoBtn) {
+        demoBtn.addEventListener('click', () => {
+          dismissOverlay();
+          setHeaderAuth(false);
+        });
+      }
+    }
+
+    // Wire up logout from header even when already authenticated
+    document.addEventListener('DOMContentLoaded', () => {
+      const authBtn = document.getElementById('authStatusBtn');
+      if (authBtn && getToken()) {
+        authBtn.addEventListener('click', () => {
+          const token = getToken();
+          if (WORKER && token) {
+            fetch(WORKER + '/api/auth/logout', {
+              method: 'POST',
+              headers: { Authorization: 'Bearer ' + token },
+            }).catch(() => {});
+          }
+          clearToken();
+          window.location.reload();
+        });
+      }
+    });
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAuth);
+    } else {
+      initAuth();
+    }
   })();
   </script>
 </body>

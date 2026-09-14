@@ -1,18 +1,67 @@
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} from '@simplewebauthn/server';
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// Returns true if the request is authenticated via CF Access or WRITE_TOKEN bearer.
-// Unauthenticated requests are routed to the public DEMO_DB instead of the real DB.
-function isAuthenticated(request, env) {
-  if (request.headers.get('Cf-Access-Authenticated-User-Email')) return true;
-  if (!env.WRITE_TOKEN) return false;
-  const header = request.headers.get('Authorization') ?? '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  return token === env.WRITE_TOKEN;
+// ── Tiny base64url helpers (Workers have btoa/atob) ────────────────────────
+
+function uint8ToBase64url(bytes) {
+  let str = '';
+  for (const b of bytes) str += String.fromCharCode(b);
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
+
+function base64urlToUint8(str) {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = (4 - padded.length % 4) % 4;
+  const binary = atob(padded + '='.repeat(pad));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function randomToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return uint8ToBase64url(bytes);
+}
+
+function rpIDFromOrigin(origin) {
+  try { return new URL(origin).hostname; } catch { return 'localhost'; }
+}
+
+// ── Auth check ─────────────────────────────────────────────────────────────
+
+async function isAuthenticated(request, env) {
+  if (request.headers.get('Cf-Access-Authenticated-User-Email')) return true;
+
+  const header = request.headers.get('Authorization') ?? '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : null;
+  if (!token) return false;
+
+  // Legacy WRITE_TOKEN (still supported for local dev)
+  if (env.WRITE_TOKEN && token === env.WRITE_TOKEN) return true;
+
+  // Session token check
+  try {
+    const row = await env.DB.prepare(
+      "SELECT id FROM sessions WHERE id = ? AND expires_at > datetime('now')"
+    ).bind(token).first();
+    return !!row;
+  } catch {
+    return false;
+  }
+}
+
+// ── JSON helpers ───────────────────────────────────────────────────────────
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -25,7 +74,199 @@ function err(msg, status = 400) {
   return json({ error: msg }, status);
 }
 
-// Map in-app facility fields → D1 structured columns (for queryability)
+// ── Auth routes ────────────────────────────────────────────────────────────
+
+async function handleAuth(path, request, env) {
+  const method = request.method;
+
+  // GET /api/auth/setup-status — has a passkey been registered?
+  if (path === '/api/auth/setup-status' && method === 'GET') {
+    try {
+      const row = await env.DB.prepare('SELECT COUNT(*) as n FROM webauthn_credentials').first();
+      return json({ hasCredentials: (row?.n ?? 0) > 0 });
+    } catch {
+      return json({ hasCredentials: false });
+    }
+  }
+
+  // GET /api/auth/me — is the current session valid?
+  if (path === '/api/auth/me' && method === 'GET') {
+    const auth = await isAuthenticated(request, env);
+    return json({ authenticated: auth });
+  }
+
+  // GET /api/auth/registration-options
+  if (path === '/api/auth/registration-options' && method === 'GET') {
+    const origin = request.headers.get('Origin') ?? '';
+    const rpID = env.RP_ID ?? rpIDFromOrigin(origin);
+
+    const options = await generateRegistrationOptions({
+      rpName: 'MassHealth CRM',
+      rpID,
+      userName: 'asia',
+      userID: new TextEncoder().encode('asia'),
+      attestationType: 'none',
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        userVerification: 'preferred',
+      },
+    });
+
+    // Clean up stale challenges, then store new one
+    await env.DB.prepare(
+      "DELETE FROM challenges WHERE created_at < datetime('now', '-10 minutes')"
+    ).run().catch(() => {});
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO challenges (id, type, origin) VALUES (?, 'registration', ?)"
+    ).bind(options.challenge, origin).run();
+
+    return json(options);
+  }
+
+  // POST /api/auth/register
+  if (path === '/api/auth/register' && method === 'POST') {
+    const body = await request.json();
+
+    const challenge = await env.DB.prepare(
+      "SELECT id, origin FROM challenges WHERE type = 'registration' ORDER BY created_at DESC LIMIT 1"
+    ).first();
+    if (!challenge) return err('No pending registration challenge — try again', 400);
+    await env.DB.prepare('DELETE FROM challenges WHERE id = ?').bind(challenge.id).run();
+
+    const rpID = env.RP_ID ?? rpIDFromOrigin(challenge.origin ?? '');
+    const rpOrigin = env.RP_ORIGIN ?? challenge.origin ?? `https://${rpID}`;
+
+    let result;
+    try {
+      result = await verifyRegistrationResponse({
+        response: body,
+        expectedChallenge: challenge.id,
+        expectedOrigin: rpOrigin,
+        expectedRPID: rpID,
+      });
+    } catch (e) {
+      return err(`Verification failed: ${e.message}`, 400);
+    }
+
+    if (!result.verified || !result.registrationInfo) {
+      return err('Registration could not be verified', 400);
+    }
+
+    const { credential } = result.registrationInfo;
+
+    await env.DB.prepare(`
+      INSERT INTO webauthn_credentials (id, user_id, public_key, sign_count, transports)
+      VALUES (?, 'asia', ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        public_key = excluded.public_key,
+        sign_count = excluded.sign_count,
+        transports = excluded.transports
+    `).bind(
+      credential.id,
+      uint8ToBase64url(credential.publicKey),
+      credential.counter,
+      JSON.stringify(credential.transports ?? []),
+    ).run();
+
+    const sessionId = await randomToken();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      .toISOString().replace('T', ' ').slice(0, 19);
+    await env.DB.prepare(
+      "INSERT INTO sessions (id, user_id, expires_at) VALUES (?, 'asia', ?)"
+    ).bind(sessionId, expiresAt).run();
+
+    return json({ verified: true, sessionToken: sessionId });
+  }
+
+  // GET /api/auth/authentication-options
+  if (path === '/api/auth/authentication-options' && method === 'GET') {
+    const origin = request.headers.get('Origin') ?? '';
+    const rpID = env.RP_ID ?? rpIDFromOrigin(origin);
+
+    const { results } = await env.DB.prepare('SELECT id FROM webauthn_credentials').all();
+
+    const options = await generateAuthenticationOptions({
+      rpID,
+      allowCredentials: results.map(c => ({ id: c.id, type: 'public-key' })),
+      userVerification: 'preferred',
+    });
+
+    await env.DB.prepare(
+      "DELETE FROM challenges WHERE created_at < datetime('now', '-10 minutes')"
+    ).run().catch(() => {});
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO challenges (id, type, origin) VALUES (?, 'authentication', ?)"
+    ).bind(options.challenge, origin).run();
+
+    return json(options);
+  }
+
+  // POST /api/auth/login
+  if (path === '/api/auth/login' && method === 'POST') {
+    const body = await request.json();
+
+    const challenge = await env.DB.prepare(
+      "SELECT id, origin FROM challenges WHERE type = 'authentication' ORDER BY created_at DESC LIMIT 1"
+    ).first();
+    if (!challenge) return err('No pending authentication challenge — try again', 400);
+    await env.DB.prepare('DELETE FROM challenges WHERE id = ?').bind(challenge.id).run();
+
+    const rpID = env.RP_ID ?? rpIDFromOrigin(challenge.origin ?? '');
+    const rpOrigin = env.RP_ORIGIN ?? challenge.origin ?? `https://${rpID}`;
+
+    const cred = await env.DB.prepare(
+      'SELECT * FROM webauthn_credentials WHERE id = ?'
+    ).bind(body.id).first();
+    if (!cred) return err('Unknown credential', 400);
+
+    let result;
+    try {
+      result = await verifyAuthenticationResponse({
+        response: body,
+        expectedChallenge: challenge.id,
+        expectedOrigin: rpOrigin,
+        expectedRPID: rpID,
+        credential: {
+          id: cred.id,
+          publicKey: base64urlToUint8(cred.public_key),
+          counter: cred.sign_count,
+        },
+      });
+    } catch (e) {
+      return err(`Authentication failed: ${e.message}`, 401);
+    }
+
+    if (!result.verified) return err('Authentication not verified', 401);
+
+    await env.DB.prepare(
+      'UPDATE webauthn_credentials SET sign_count = ? WHERE id = ?'
+    ).bind(result.authenticationInfo.newCounter, cred.id).run();
+
+    const sessionId = await randomToken();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      .toISOString().replace('T', ' ').slice(0, 19);
+    await env.DB.prepare(
+      "INSERT INTO sessions (id, user_id, expires_at) VALUES (?, 'asia', ?)"
+    ).bind(sessionId, expiresAt).run();
+
+    return json({ verified: true, sessionToken: sessionId });
+  }
+
+  // POST /api/auth/logout
+  if (path === '/api/auth/logout' && method === 'POST') {
+    const header = request.headers.get('Authorization') ?? '';
+    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : null;
+    if (token) {
+      await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(token).run().catch(() => {});
+    }
+    return json({ ok: true });
+  }
+
+  return err('Not found', 404);
+}
+
+// ── Facilities ─────────────────────────────────────────────────────────────
+
 function facilityMeta(f) {
   return {
     id: f.id,
@@ -40,21 +281,9 @@ function facilityMeta(f) {
   };
 }
 
-function patientMeta(p) {
-  return {
-    id: p.id,
-    name: p.name ?? '',
-    gender: p.gender ?? null,
-    target_region: p.target_region ?? null,
-    placement_stage: p.placement_stage ?? 'GATHERING_INFO',
-  };
-}
-
-// ── Facilities ─────────────────────────────────────────────────────────────
-
 async function getFacilities(db) {
   const { results } = await db
-    .prepare("SELECT data_blob FROM facilities ORDER BY name")
+    .prepare('SELECT data_blob FROM facilities ORDER BY name')
     .all();
   return results
     .map(r => { try { return JSON.parse(r.data_blob); } catch { return null; } })
@@ -86,9 +315,19 @@ async function upsertFacility(db, f) {
 
 // ── Patients ───────────────────────────────────────────────────────────────
 
+function patientMeta(p) {
+  return {
+    id: p.id,
+    name: p.name ?? '',
+    gender: p.gender ?? null,
+    target_region: p.target_region ?? null,
+    placement_stage: p.placement_stage ?? 'GATHERING_INFO',
+  };
+}
+
 async function getPatients(db) {
   const { results } = await db
-    .prepare("SELECT data_blob FROM patients ORDER BY name")
+    .prepare('SELECT data_blob FROM patients ORDER BY name')
     .all();
   return results
     .map(r => { try { return JSON.parse(r.data_blob); } catch { return null; } })
@@ -99,7 +338,7 @@ async function upsertPatient(db, p, recordEvent = false) {
   const m = patientMeta(p);
   if (recordEvent) {
     const old = await db
-      .prepare("SELECT placement_stage FROM patients WHERE id = ?")
+      .prepare('SELECT placement_stage FROM patients WHERE id = ?')
       .bind(p.id).first();
     if (old && old.placement_stage !== m.placement_stage) {
       await db.prepare(`
@@ -150,7 +389,7 @@ async function addCallLog(db, facilityId, log) {
 
 async function getRepatriation(db) {
   const { results } = await db
-    .prepare("SELECT patient_id, stage, status, notes, completed_at FROM repatriation_progress ORDER BY patient_id, stage")
+    .prepare('SELECT patient_id, stage, status FROM repatriation_progress ORDER BY patient_id, stage')
     .all();
   const byPatient = {};
   for (const r of results) {
@@ -180,8 +419,6 @@ async function saveRepatriation(db, repatObj) {
   }
 }
 
-// ── Full pooled state ──────────────────────────────────────────────────────
-
 async function getFullState(db) {
   const [facilities, patients, repatriation] = await Promise.all([
     getFacilities(db),
@@ -191,7 +428,7 @@ async function getFullState(db) {
   return { facilities, patients, repatriation_progress: repatriation };
 }
 
-// ── Router ─────────────────────────────────────────────────────────────────
+// ── Main router ────────────────────────────────────────────────────────────
 
 export default {
   async fetch(request, env) {
@@ -199,28 +436,30 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
-    const authenticated = isAuthenticated(request, env);
-    const db = authenticated ? env.DB : env.DEMO_DB;
-
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
 
-    // Block writes in demo mode (unauthenticated requests use DEMO_DB, read-only)
+    // Auth routes always use env.DB (real DB)
+    if (path.startsWith('/api/auth/')) {
+      return handleAuth(path, request, env);
+    }
+
+    const authenticated = await isAuthenticated(request, env);
+    const db = authenticated ? env.DB : env.DEMO_DB;
+
     if (!authenticated && method !== 'GET' && method !== 'HEAD') {
-      return new Response(
-        JSON.stringify({ error: 'Demo mode: authenticate to perform write operations' }),
-        { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+      return json(
+        { error: 'Demo mode: authenticate to perform write operations' },
+        403,
       );
     }
 
     try {
-      // GET /api/state — full pooled state
       if (path === '/api/state' && method === 'GET') {
         return json(await getFullState(db));
       }
 
-      // POST /api/state — bulk import all slices
       if (path === '/api/state' && method === 'POST') {
         const body = await request.json();
         const { facilities = [], patients = [], repatriation_progress = {} } = body;
@@ -232,19 +471,16 @@ export default {
         return json({ ok: true });
       }
 
-      // GET /api/facilities
       if (path === '/api/facilities' && method === 'GET') {
         return json(await getFacilities(db));
       }
 
-      // PUT /api/facilities — bulk upsert all facilities
       if (path === '/api/facilities' && method === 'PUT') {
         const facilities = await request.json();
         for (const f of facilities) await upsertFacility(db, f);
         return json({ ok: true });
       }
 
-      // PATCH /api/facilities/:id — update one facility
       const facilityMatch = path.match(/^\/api\/facilities\/(\d+)$/);
       if (facilityMatch) {
         const id = parseInt(facilityMatch[1]);
@@ -255,7 +491,6 @@ export default {
         }
       }
 
-      // POST /api/facilities/:id/call_logs — add a call log entry
       const callLogMatch = path.match(/^\/api\/facilities\/(\d+)\/call_logs$/);
       if (callLogMatch) {
         const id = parseInt(callLogMatch[1]);
@@ -266,19 +501,16 @@ export default {
         }
       }
 
-      // GET /api/patients
       if (path === '/api/patients' && method === 'GET') {
         return json(await getPatients(db));
       }
 
-      // PUT /api/patients — bulk upsert all patients
       if (path === '/api/patients' && method === 'PUT') {
         const patients = await request.json();
         for (const p of patients) await upsertPatient(db, p, true);
         return json({ ok: true });
       }
 
-      // PATCH /api/patients/:id — update one patient (triggers progress event)
       const patientMatch = path.match(/^\/api\/patients\/([^/]+)$/);
       if (patientMatch) {
         const id = patientMatch[1];
@@ -289,19 +521,17 @@ export default {
         }
       }
 
-      // GET /api/patients/:id/progress — full progress event timeline
       const progressMatch = path.match(/^\/api\/patients\/([^/]+)\/progress$/);
       if (progressMatch) {
         const id = progressMatch[1];
         if (method === 'GET') {
           const { results } = await db
-            .prepare("SELECT * FROM progress_events WHERE patient_id = ? ORDER BY created_at DESC")
+            .prepare('SELECT * FROM progress_events WHERE patient_id = ? ORDER BY created_at DESC')
             .bind(id).all();
           return json(results);
         }
       }
 
-      // GET/PUT /api/repatriation
       if (path === '/api/repatriation') {
         if (method === 'GET') return json(await getRepatriation(db));
         if (method === 'PUT') {
@@ -311,7 +541,6 @@ export default {
         }
       }
 
-      // GET/POST /api/facilities/:id/email-outreach
       const emailMatch = path.match(/^\/api\/facilities\/(\d+)\/email-outreach$/);
       if (emailMatch) {
         const id = parseInt(emailMatch[1]);
@@ -346,7 +575,6 @@ export default {
         }
       }
 
-      // PATCH /api/email-outreach/:id — log outcome
       const outcomePatch = path.match(/^\/api\/email-outreach\/(\d+)\/outcome$/);
       if (outcomePatch && method === 'PATCH') {
         const id = parseInt(outcomePatch[1]);
@@ -364,7 +592,9 @@ export default {
           id,
         ).run();
 
-        const row = await db.prepare('SELECT patient_id, facility_id FROM email_outreach WHERE id = ?').bind(id).first();
+        const row = await db
+          .prepare('SELECT patient_id, facility_id FROM email_outreach WHERE id = ?')
+          .bind(id).first();
         if (row?.patient_id) {
           await db.prepare(`
             INSERT INTO progress_events (patient_id, facility_id, event_type, new_value)
