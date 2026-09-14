@@ -5204,23 +5204,29 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
         try {
           let sessionToken;
           if (!hasCredentials) {
-            const opts = await fetch(WORKER + '/api/auth/registration-options').then(r => r.json());
+            const optsRes = await fetch(WORKER + '/api/auth/registration-options');
+            if (!optsRes.ok) throw new Error((await optsRes.json().catch(() => ({}))).error || `Worker error ${optsRes.status}`);
+            const opts = await optsRes.json();
             const resp = await startRegistration(opts);
-            const result = await fetch(WORKER + '/api/auth/register', {
+            const regRes = await fetch(WORKER + '/api/auth/register', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(resp),
-            }).then(r => r.json());
+            });
+            const result = await regRes.json();
             if (!result.verified) throw new Error(result.error || 'Registration failed');
             sessionToken = result.sessionToken;
           } else {
-            const opts = await fetch(WORKER + '/api/auth/authentication-options').then(r => r.json());
+            const optsRes = await fetch(WORKER + '/api/auth/authentication-options');
+            if (!optsRes.ok) throw new Error((await optsRes.json().catch(() => ({}))).error || `Worker error ${optsRes.status}`);
+            const opts = await optsRes.json();
             const resp = await startAuthentication(opts);
-            const result = await fetch(WORKER + '/api/auth/login', {
+            const authRes = await fetch(WORKER + '/api/auth/login', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(resp),
-            }).then(r => r.json());
+            });
+            const result = await authRes.json();
             if (!result.verified) throw new Error(result.error || 'Authentication failed');
             sessionToken = result.sessionToken;
           }
