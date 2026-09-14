@@ -1,6 +1,7 @@
 // No external dependencies — WebAuthn verification uses the Workers Web Crypto API.
-// Routes: /api/auth/setup-status, /api/auth/registration-options, /api/auth/register,
-//         /api/auth/authentication-options, /api/auth/login, /api/auth/logout, /api/auth/me
+// Auth routes: setup-status · registration-options · register
+//              authentication-options · login · logout · me
+// Data routes: /api/state · /api/facilities · /api/patients · /api/repatriation
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
