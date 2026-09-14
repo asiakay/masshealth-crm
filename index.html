@@ -81,14 +81,20 @@
       <div id="loginError" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 text-left hidden"></div>
 
       <p id="loginDemoNote" class="mt-5 text-[11px] text-slate-400">
-        Viewing demo data until you sign in.
+        Passkey required to save data. Without signing in, changes are lost on refresh.
       </p>
 
       <button id="loginDemoBtn" type="button"
         class="mt-2 text-[11px] text-slate-400 underline hover:text-slate-600 transition-colors">
-        Continue with demo data →
+        View read-only demo (changes won't save) →
       </button>
     </div>
+  </div>
+
+  <!-- Demo mode warning bar (shown when user skips login) -->
+  <div id="demoWarningBar" class="hidden sticky top-0 z-40 bg-amber-50 border-b border-amber-300 py-2 px-4 text-center text-xs text-amber-900 flex items-center justify-center gap-3">
+    <span>🔒 Read-only demo — changes are not saved.</span>
+    <button onclick="document.getElementById('loginOverlay').classList.remove('hidden'); document.getElementById('demoWarningBar').classList.add('hidden');" class="font-bold underline hover:text-amber-700">Sign in with passkey to save data</button>
   </div>
 
   <!-- Top System Header -->
@@ -156,10 +162,10 @@
 
         <!-- Auth status chip -->
         <button id="authStatusBtn" type="button"
-          class="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold shadow-2xs transition hidden"
-          title="Sign in / out">
-          <span id="authStatusIcon">🔒</span>
-          <span id="authStatusLabel">Demo</span>
+          class="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold shadow-2xs transition"
+          title="Sign in with passkey">
+          <span id="authStatusIcon">🔑</span>
+          <span id="authStatusLabel">Sign in</span>
         </button>
       </div>
     </div>
@@ -186,6 +192,20 @@
         <button id="seedFullRosterBtn" type="button" class="text-amber-300 hover:text-amber-100 underline text-[11px]">
           ↻ Reset Complete Roster (32+ SNFs)
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Dad's Move Milestone Tracker ─────────────────────────────────── -->
+  <div id="milestoneTracker" class="bg-white border-b border-slate-200 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-3 flex-wrap">
+      <button id="milestoneToggleBtn" type="button" class="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 flex-shrink-0" title="Expand / collapse">
+        <span id="milestoneToggleIcon">▶</span>
+        <span class="text-slate-800">Dad's Move Progress</span>
+        <span id="milestoneSummary" class="text-slate-400 font-normal text-[11px]">0 / 7</span>
+      </button>
+      <div id="milestoneList" class="hidden flex-1 flex flex-wrap gap-x-4 gap-y-1.5 items-center">
+        <!-- milestones rendered by JS -->
       </div>
     </div>
   </div>
@@ -224,6 +244,20 @@
       <div class="bg-rose-50 p-3 rounded-xl border border-rose-200 shadow-xs">
         <span class="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">Eliminated</span>
         <p id="metricDisqualified" class="text-2xl font-black text-rose-700 mt-0.5">0</p>
+      </div>
+    </div>
+
+    <!-- ── Today's Focus Panel ──────────────────────────────────────────── -->
+    <div id="todaysFocusPanel" class="mt-2.5 bg-blue-50 border border-blue-200 rounded-xl p-3 shadow-xs">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-extrabold text-blue-900">⚡ Today's Focus</span>
+          <span class="text-[10px] text-blue-600 font-semibold bg-blue-100 px-1.5 py-0.5 rounded-full">What to do right now</span>
+        </div>
+        <button id="refreshFocusBtn" type="button" class="text-[11px] text-blue-500 hover:text-blue-700 underline">↻ Refresh</button>
+      </div>
+      <div id="focusActionsList" class="space-y-1.5 text-xs">
+        <div class="text-slate-400 italic text-xs">Loading...</div>
       </div>
     </div>
 
@@ -5015,10 +5049,9 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
     });
 
     window.initOnboarding = function() {
-      let done = false;
-      try { done = !!localStorage.getItem(OB_KEY); } catch(e) {}
-      if (done) return;
-      showStep(0);
+      // Auto-launch is intentionally suppressed — the app is well-established.
+      // Use the "? Tour" button to replay it manually.
+      try { localStorage.setItem(OB_KEY, '1'); } catch(e) {}
     };
 
     window.replayOnboardingTour = function() {
@@ -5148,11 +5181,25 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
         btn.classList.add('bg-green-50', 'border-green-300', 'text-green-800');
         document.getElementById('authStatusIcon').textContent = '✅';
         document.getElementById('authStatusLabel').textContent = 'Signed in';
+        btn.title = 'Click to sign out';
+        btn.onclick = () => {
+          const token = getToken();
+          if (WORKER && token) fetch(WORKER + '/api/auth/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(() => {});
+          clearToken();
+          window.location.reload();
+        };
       } else {
         btn.className = btn.className.replace(/bg-\S+|border-\S+|text-\S+/g, '').trim();
         btn.classList.add('bg-amber-50', 'border-amber-300', 'text-amber-800');
-        document.getElementById('authStatusIcon').textContent = '🔒';
-        document.getElementById('authStatusLabel').textContent = 'Demo mode';
+        document.getElementById('authStatusIcon').textContent = '🔑';
+        document.getElementById('authStatusLabel').textContent = 'Sign in';
+        // clicking "Sign in" opens the passkey overlay
+        btn.onclick = () => {
+          const ov = document.getElementById('loginOverlay');
+          if (ov) ov.classList.remove('hidden');
+          const wb = document.getElementById('demoWarningBar');
+          if (wb) wb.classList.add('hidden');
+        };
       }
     }
 
@@ -5269,6 +5316,8 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
         demoBtn.addEventListener('click', () => {
           dismissOverlay();
           setHeaderAuth(false);
+          const wb = document.getElementById('demoWarningBar');
+          if (wb) wb.classList.remove('hidden');
         });
       }
     }
@@ -5296,6 +5345,170 @@ Direct Case Manager Callback: (617) 555-0100 | referral-triage@carenetwork.org
     } else {
       initAuth();
     }
+  })();
+  </script>
+
+  <!-- ── Milestone Tracker & Today's Focus ──────────────────────────────── -->
+  <script>
+  (function() {
+    'use strict';
+
+    const MILESTONE_KEY = 'masshealth_move_milestones_v1';
+    const MILESTONES = [
+      { id: 'research',   label: 'Compiled MA SNF list' },
+      { id: 'called5',    label: 'Called 5+ facilities' },
+      { id: 'pendingYes', label: 'Found MH-Pending YES facility' },
+      { id: 'packet',     label: 'Sent referral packet' },
+      { id: 'commitment', label: 'Got bed commitment' },
+      { id: 'transport',  label: 'Transport arranged' },
+      { id: 'admitted',   label: 'Dad admitted' },
+    ];
+
+    function loadChecked() {
+      try { return JSON.parse(localStorage.getItem(MILESTONE_KEY) || '{}'); } catch { return {}; }
+    }
+    function saveChecked(obj) {
+      try { localStorage.setItem(MILESTONE_KEY, JSON.stringify(obj)); } catch {}
+    }
+
+    function renderMilestones() {
+      const list  = document.getElementById('milestoneList');
+      const summary = document.getElementById('milestoneSummary');
+      if (!list) return;
+      const checked = loadChecked();
+      const doneCount = MILESTONES.filter(m => checked[m.id]).length;
+      if (summary) summary.textContent = `${doneCount} / ${MILESTONES.length}`;
+
+      list.innerHTML = MILESTONES.map(m => {
+        const done = !!checked[m.id];
+        return `<label class="flex items-center gap-1.5 cursor-pointer select-none group" title="${m.label}">
+          <input type="checkbox" data-milestone="${m.id}" ${done ? 'checked' : ''}
+            class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer">
+          <span class="text-xs ${done ? 'line-through text-slate-400' : 'text-slate-700'} group-hover:text-slate-900 whitespace-nowrap">${m.label}</span>
+        </label>`;
+      }).join('');
+
+      // wire checkboxes
+      list.querySelectorAll('input[data-milestone]').forEach(cb => {
+        cb.addEventListener('change', e => {
+          const c = loadChecked();
+          c[e.target.dataset.milestone] = e.target.checked;
+          saveChecked(c);
+          renderMilestones();
+        });
+      });
+    }
+
+    function initMilestoneTracker() {
+      const toggleBtn  = document.getElementById('milestoneToggleBtn');
+      const toggleIcon = document.getElementById('milestoneToggleIcon');
+      const list       = document.getElementById('milestoneList');
+      if (!toggleBtn) return;
+
+      renderMilestones();
+
+      // Auto-expand if not all done
+      const checked = loadChecked();
+      const allDone = MILESTONES.every(m => checked[m.id]);
+      if (!allDone) {
+        list.classList.remove('hidden');
+        toggleIcon.textContent = '▼';
+      }
+
+      toggleBtn.addEventListener('click', () => {
+        const open = !list.classList.contains('hidden');
+        list.classList.toggle('hidden', open);
+        toggleIcon.textContent = open ? '▶' : '▼';
+      });
+    }
+
+    // ── Today's Focus ────────────────────────────────────────────────────────
+
+    function buildFocusActions() {
+      const container = document.getElementById('focusActionsList');
+      if (!container) return;
+
+      // Grab current facilities from the global state (if available)
+      const facs = (typeof window.facilities !== 'undefined') ? window.facilities : [];
+      const patient = (typeof window.patients !== 'undefined' && window.patients.length)
+        ? window.patients.find(p => p.id === window.activePatientId) || window.patients[0]
+        : null;
+
+      const actions = [];
+
+      if (!facs.length) {
+        actions.push({ icon: '📋', text: 'Load your facility list — click "↻ Reset Complete Roster (32+ SNFs)" to seed all known MA SNFs', urgent: true });
+      } else {
+        // Find calls due: no contact recorded or last_contact_date is old
+        const today = new Date().toISOString().split('T')[0];
+        const sevenDaysAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0];
+        const active = facs.filter(f => !f.disqualified);
+
+        // Best candidate: Pending YES + bed open
+        const best = active.find(f => f.referral_status === 'Pending: YES' && f.bed_available);
+        if (best) {
+          actions.push({ icon: '🟢', text: `Top candidate: ${best.name} — MH Pending YES + bed open. Confirm intake, send packet today.`, urgent: true, facilityId: best.id });
+        }
+
+        // Facilities pending follow-up today or overdue
+        const followUps = active.filter(f => f.follow_up_date && f.follow_up_date <= today && f.referral_status !== 'Disqualified' && f.referral_status !== 'Admitted').slice(0, 3);
+        followUps.forEach(f => {
+          actions.push({ icon: '📅', text: `Follow up due: ${f.name} (${f.referral_status || 'status unknown'})`, urgent: f.follow_up_date < today, facilityId: f.id });
+        });
+
+        // Facilities never contacted
+        const neverContacted = active.filter(f => !f.last_contact_date && !f.referral_status).slice(0, 2);
+        if (neverContacted.length) {
+          const names = neverContacted.map(f => f.name).join(', ');
+          actions.push({ icon: '📞', text: `Not yet contacted: ${names} — call to ask about MH pending acceptance`, urgent: false });
+        }
+
+        // If no specific actions found
+        if (!best && !followUps.length && !neverContacted.length) {
+          const pendingYes = active.filter(f => f.referral_status === 'Pending: YES');
+          if (pendingYes.length) {
+            actions.push({ icon: '📄', text: `${pendingYes.length} facility/ies say Pending YES — send referral packet to each`, urgent: true });
+          } else {
+            const needsCall = active.filter(f => !f.referral_status || f.referral_status === 'Not Contacted').slice(0, 5);
+            actions.push({ icon: '📞', text: `Call ${needsCall.length || active.length} facilities — ask "Do you accept MH pending?" and log the answer`, urgent: false });
+          }
+        }
+      }
+
+      if (!actions.length) {
+        actions.push({ icon: '✅', text: 'No urgent actions right now — review the active queue for any stale follow-ups', urgent: false });
+      }
+
+      container.innerHTML = actions.slice(0, 4).map(a => `
+        <div class="flex items-start gap-2 p-2 rounded-lg ${a.urgent ? 'bg-blue-100 border border-blue-300' : 'bg-white border border-slate-200'} cursor-default">
+          <span class="text-base flex-shrink-0 mt-0.5">${a.icon}</span>
+          <span class="${a.urgent ? 'text-blue-900 font-semibold' : 'text-slate-700'}">${a.text}</span>
+          ${a.facilityId ? `<button onclick="window.selectFacility && window.selectFacility('${a.facilityId}'); document.getElementById('facilitiesListContainer') && document.getElementById('facilitiesListContainer').scrollIntoView({behavior:'smooth'})" class="ml-auto flex-shrink-0 px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded transition">Go →</button>` : ''}
+        </div>`).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initMilestoneTracker();
+      // Delay focus build until after facility data loads
+      setTimeout(buildFocusActions, 800);
+
+      const refreshBtn = document.getElementById('refreshFocusBtn');
+      if (refreshBtn) refreshBtn.addEventListener('click', buildFocusActions);
+    });
+
+    // Re-run after D1 load (facilities may update)
+    const _origLoadFromD1 = window.loadFromD1;
+    Object.defineProperty(window, 'loadFromD1', {
+      configurable: true,
+      get() { return _origLoadFromD1; },
+      set(fn) {
+        window._loadFromD1Wrapped = async (...args) => {
+          const r = await fn(...args);
+          setTimeout(buildFocusActions, 200);
+          return r;
+        };
+      }
+    });
   })();
   </script>
 </body>
