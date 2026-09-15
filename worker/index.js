@@ -742,6 +742,38 @@ export default {
         return json({ ok: true });
       }
 
+      // POST /api/repodash/log-stage — proxy a stage completion to repo-dashboard MCP
+      // Token never touches the browser; REPODASH_MCP_TOKEN stays in worker env.
+      if (path === '/api/repodash/log-stage' && method === 'POST') {
+        const { stage, stage_title } = await request.json();
+        const mcpUrl = (env.REPODASH_MCP_URL || '').trim();
+        if (mcpUrl && stage) {
+          const headers = { 'Content-Type': 'application/json' };
+          if (env.REPODASH_MCP_TOKEN) headers['Authorization'] = `Bearer ${env.REPODASH_MCP_TOKEN}`;
+          try {
+            await fetch(mcpUrl, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: Date.now(),
+                method: 'tools/call',
+                params: {
+                  name: 'log_task',
+                  arguments: {
+                    description: `Repatriation stage ${stage} completed: ${stage_title}`,
+                    okr_id: `DAD-${stage}`,
+                  },
+                },
+              }),
+            });
+          } catch (e) {
+            console.warn('[repodash sync]', e.message);
+          }
+        }
+        return json({ ok: true });
+      }
+
       return err('Not found', 404);
     } catch (e) {
       console.error(e);

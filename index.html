@@ -2181,6 +2181,24 @@ Every day my parent remains in your acute hospital bed costs your institution th
       await d1Fetch('/api/state', 'POST', { facilities, patients, repatriation_progress: repatriationProgress });
     }
 
+    const STAGE_TITLES = {
+      1: 'Establish Massachusetts Legal Residency (42 CFR § 435.403)',
+      2: 'Compel Hospital Case Management Records Release',
+      3: 'File Cross-State PASRR Level 1 Screen',
+      4: 'Submit MassHealth SACA-2 LTC Application to Tewksbury MEC',
+      5: 'Secure Conditional Bed Acceptance from MassHealth-Pending SNF',
+      6: 'Serve Safe Discharge Demand & Secure Hospital-Funded Transport',
+      7: 'Direct Transfer Arrival & Business Office PPA Turnover',
+    };
+
+    async function logStageToRepoDash(stageNumber, stageTitle) {
+      // Routes through the worker — MCP token never touches the browser.
+      await d1Fetch('/api/repodash/log-stage', 'POST', {
+        stage: stageNumber,
+        stage_title: stageTitle,
+      });
+    }
+
     async function loadFromD1() {
       const state = await d1Fetch('/api/state');
       if (!state) return false;
@@ -2880,6 +2898,7 @@ Notary Public, Commonwealth of Massachusetts`;
           saveState();
           updatePill();
           showToast(`Updated Repatriation Step ${stage}!`);
+          if (e.target.checked) logStageToRepoDash(parseInt(stage), STAGE_TITLES[stage] || `Stage ${stage}`);
         });
       });
       updatePill();
